@@ -1,145 +1,203 @@
+/**
+ * Protótipo console — Sprint 2: O Motor de Regras
+ *
+ * Demonstra:
+ *  - Diferentes comportamentos de crescimento (TrechoUmido vs TrechoSeco)
+ *  - Hierarquia com classe abstrata (IntervencaoOperacional)
+ *  - Contrato de interface (MonitoravelViaIoT)
+ *  - Geração do Relatório de Prioridade automático
+ */
 public class Main {
-    // Separador visual para o console
-    private static final String SEPARADOR = "─".repeat(60);
+
+    private static final String SEPARADOR = "─".repeat(65);
 
     public static void main(String[] args) {
         System.out.println(SEPARADOR);
-        System.out.println("  SISTEMA DE MONITORAMENTO DE VEGETAÇÃO — SPRINT 1");
+        System.out.println("  SPRINT 2 — O MOTOR DE REGRAS");
         System.out.println(SEPARADOR);
 
-        executarTestes();
+        testarPolimorfismoDeCrescimento();
+        testarClasseAbstrata();
+        testarInterfaceIoT();
+        testarMockIoT();
+        testarRelatorioCompleto();
 
         System.out.println("\n" + SEPARADOR);
         System.out.println("  FIM DOS TESTES");
         System.out.println(SEPARADOR);
     }
 
-    // Bloco de testes
+    // =========================================================================
+    // TESTE 1 — Polimorfismo: crescimentos diferentes por tipo de trecho
+    // =========================================================================
 
-    private static void executarTestes() {
-
-        // TESTE 1 — Instanciação válida de dois trechos distintos
-        titulo("TESTE 1 — Instanciação de trechos válidos");
+    private static void testarPolimorfismoDeCrescimento() {
+        titulo("TESTE 1 — Polimorfismo: crescimento diferente por tipo de trecho");
         try {
-            TrechoRodovia trecho1 = new TrechoRodovia(0, 10, 5.0);
-            TrechoRodovia trecho2 = new TrechoRodovia(10, 20, 30.0);
+            TrechoUmido umido = new TrechoUmido(0, 10, 0.0, 1.5); // chuva 50% acima
+            TrechoSeco  seco  = new TrechoSeco(10, 20, 0.0, true); // estação seca
 
-            assert trecho1 != null : "trecho1 não deveria ser nulo";
-            assert trecho2 != null : "trecho2 não deveria ser nulo";
+            umido.simularCrescimento(10);
+            seco.simularCrescimento(10);
 
-            System.out.println("Trecho 1 criado: " + trecho1);
-            System.out.println("Trecho 2 criado: " + trecho2);
-            sucesso("Ambos os trechos instanciados com sucesso.");
-        } catch (IllegalArgumentException e) {
-            falha("Não deveria lançar exceção aqui. Detalhe: " + e.getMessage());
-        }
+            System.out.printf("Trecho Úmido (pluvio 1.5x) após 10 dias: %.1f cm%n",
+                    umido.getNivelVegetacaoCm());
+            System.out.printf("Trecho Seco (estação seca) após 10 dias: %.1f cm%n",
+                    seco.getNivelVegetacaoCm());
 
-        // TESTE 2 — registrarCrescimento aumenta o nível corretamente
-        titulo("TESTE 2 — Crescimento válido: 10 cm + 5 cm = 15 cm");
-        try {
-            TrechoRodovia trecho = new TrechoRodovia(0, 5, 10.0);
-            trecho.registrarCrescimento(5.0);
+            assert umido.getNivelVegetacaoCm() > seco.getNivelVegetacaoCm()
+                    : "Trecho úmido deve crescer mais que o seco";
 
-            double esperado = 15.0;
-            double obtido = trecho.getNivelVegetacaoCm();
-
-            assert obtido == esperado
-                    : "Esperado " + esperado + " cm, mas obteve " + obtido + " cm";
-
-            System.out.println("Nível após crescimento: " + obtido + " cm (esperado: " + esperado + " cm)");
-            sucesso("Crescimento registrado corretamente.");
-        } catch (IllegalArgumentException e) {
-            falha("Exceção inesperada: " + e.getMessage());
-        }
-
-        // TESTE 3 — Crescimento negativo deve lançar exceção
-        titulo("TESTE 3 — Crescimento negativo (-5 cm) deve ser rejeitado");
-        try {
-            TrechoRodovia trecho = new TrechoRodovia(5, 15, 20.0);
-            trecho.registrarCrescimento(-5.0);
-            falha("Deveria ter lançado IllegalArgumentException, mas não lançou.");
-        } catch (IllegalArgumentException e) {
-            sucesso("Exceção capturada corretamente → " + e.getMessage());
-        }
-
-        // TESTE 4 — Nível de vegetação inicial negativo deve ser rejeitado
-        titulo("TESTE 4 — Nível de vegetação negativo no construtor deve ser rejeitado");
-        try {
-            new TrechoRodovia(0, 10, -5.0);
-            falha("Deveria ter lançado IllegalArgumentException, mas não lançou.");
-        } catch (IllegalArgumentException e) {
-            sucesso("Exceção capturada corretamente → " + e.getMessage());
-        }
-
-        // TESTE 5 — Quilômetro final menor ou igual ao inicial deve ser rejeitado
-        titulo("TESTE 5 — KM final <= KM inicial deve ser rejeitado");
-        try {
-            new TrechoRodovia(20, 10, 0.0); // final < inicial
-            falha("Deveria ter lançado IllegalArgumentException, mas não lançou.");
-        } catch (IllegalArgumentException e) {
-            sucesso("Exceção capturada corretamente → " + e.getMessage());
-        }
-
-        // TESTE 6 — Quilômetro inicial negativo deve ser rejeitado
-        titulo("TESTE 6 — KM inicial negativo deve ser rejeitado");
-        try {
-            new TrechoRodovia(-1, 10, 0.0);
-            falha("Deveria ter lançado IllegalArgumentException, mas não lançou.");
-        } catch (IllegalArgumentException e) {
-            sucesso("Exceção capturada corretamente → " + e.getMessage());
-        }
-
-        // TESTE 7 — Associação de equipe a trecho crítico
-        titulo("TESTE 7 — Associação de equipe a trecho crítico (>= 50 cm)");
-        try {
-            TrechoRodovia trecho = new TrechoRodovia(30, 50, 45.0);
-            trecho.registrarCrescimento(10.0); // sobe para 55 cm → crítico
-
-            System.out.println("Nível atual: " + trecho.getNivelVegetacaoCm() + " cm");
-            System.out.println("Trecho crítico? " + trecho.isCritico());
-
-            if (trecho.isCritico()) {
-                EquipeManutencao equipe = new EquipeManutencao("Equipe Alpha", 6);
-                trecho.associarEquipe(equipe);
-                System.out.println("Equipe designada: " + equipe);
-            }
-
-            System.out.println("Estado final: " + trecho);
-            sucesso("Equipe associada ao trecho crítico com sucesso.");
-        } catch (IllegalArgumentException e) {
-            falha("Exceção inesperada: " + e.getMessage());
-        }
-
-        // TESTE 8 — Equipe com nome vazio deve ser rejeitada
-        titulo("TESTE 8 — Equipe com nome vazio deve ser rejeitada");
-        try {
-            new EquipeManutencao("", 3);
-            falha("Deveria ter lançado IllegalArgumentException, mas não lançou.");
-        } catch (IllegalArgumentException e) {
-            sucesso("Exceção capturada corretamente → " + e.getMessage());
-        }
-
-        // TESTE 9 — Equipe com zero integrantes deve ser rejeitada
-        titulo("TESTE 9 — Equipe com 0 integrantes deve ser rejeitada");
-        try {
-            new EquipeManutencao("Equipe Beta", 0);
-            falha("Deveria ter lançado IllegalArgumentException, mas não lançou.");
-        } catch (IllegalArgumentException e) {
-            sucesso("Exceção capturada corretamente → " + e.getMessage());
-        }
-
-        // TESTE 10 — Associar equipe nula deve ser rejeitado
-        titulo("TESTE 10 — Associar equipe nula deve ser rejeitado");
-        try {
-            TrechoRodovia trecho = new TrechoRodovia(0, 10, 0.0);
-            trecho.associarEquipe(null);
-            falha("Deveria ter lançado IllegalArgumentException, mas não lançou.");
-        } catch (IllegalArgumentException e) {
-            sucesso("Exceção capturada corretamente → " + e.getMessage());
+            sucesso("Crescimento polimórfico validado — úmido > seco.");
+        } catch (Exception e) {
+            falha(e.getMessage());
         }
     }
 
+    // =========================================================================
+    // TESTE 2 — Classe abstrata não pode ser instanciada diretamente
+    // =========================================================================
+
+    private static void testarClasseAbstrata() {
+        titulo("TESTE 2 — Impossibilidade de instanciar classes abstratas");
+
+        // TrechoRodovia e IntervencaoOperacional são abstratas.
+        // O compilador Java já impede new TrechoRodovia(...) e new IntervencaoOperacional(...).
+        // Este teste valida isso em tempo de execução via reflexão.
+        try {
+            Class<?> classeTrecho      = Class.forName("TrechoRodovia");
+            Class<?> classeIntervencao = Class.forName("IntervencaoOperacional");
+
+            boolean trechoAbstrato      = java.lang.reflect.Modifier.isAbstract(classeTrecho.getModifiers());
+            boolean intervencaoAbstrata = java.lang.reflect.Modifier.isAbstract(classeIntervencao.getModifiers());
+
+            assert trechoAbstrato      : "TrechoRodovia deveria ser abstrata";
+            assert intervencaoAbstrata : "IntervencaoOperacional deveria ser abstrata";
+
+            System.out.println("TrechoRodovia é abstrata?       " + trechoAbstrato);
+            System.out.println("IntervencaoOperacional abstrata? " + intervencaoAbstrata);
+            sucesso("Ambas as classes base são abstratas — instanciação direta impossível.");
+        } catch (ClassNotFoundException e) {
+            falha("Classe não encontrada: " + e.getMessage());
+        }
+    }
+
+    // =========================================================================
+    // TESTE 3 — Interface IoT: apenas trechos monitorados transmitem dados
+    // =========================================================================
+
+    private static void testarInterfaceIoT() {
+        titulo("TESTE 3 — Interface MonitoravelViaIoT em TrechoUmidoMonitorado");
+        try {
+            TrechoUmidoMonitorado monitorado = new TrechoUmidoMonitorado(
+                    20, 30, 60.0, 1.2, "SENSOR-BR116-KM25"
+            );
+            TrechoSeco semSensor = new TrechoSeco(30, 40, 60.0);
+
+            assert monitorado instanceof MonitoravelViaIoT
+                    : "TrechoUmidoMonitorado deve implementar MonitoravelViaIoT";
+            assert !(semSensor instanceof MonitoravelViaIoT)
+                    : "TrechoSeco não deve implementar MonitoravelViaIoT";
+
+            System.out.println("TrechoUmidoMonitorado é MonitoravelViaIoT? " +
+                    (monitorado instanceof MonitoravelViaIoT));
+            System.out.println("TrechoSeco é MonitoravelViaIoT?            " +
+                    (semSensor instanceof MonitoravelViaIoT));
+            System.out.print("Transmitindo dados: ");
+            monitorado.transmitirDadosSensor();
+
+            sucesso("Contrato IoT verificado corretamente.");
+        } catch (Exception e) {
+            falha(e.getMessage());
+        }
+    }
+
+    // =========================================================================
+    // TESTE 4 — Mock IoT: objeto anônimo implementando a interface
+    // =========================================================================
+
+    private static void testarMockIoT() {
+        titulo("TESTE 4 — Mock de MonitoravelViaIoT (simulação de sensor)");
+        try {
+            // Objeto anônimo que implementa a interface — padrão Mock para testes
+            MonitoravelViaIoT sensorMock = new MonitoravelViaIoT() {
+                @Override
+                public double transmitirDadosSensor() {
+                    return 45.0; // valor fixo para teste determinístico
+                }
+                @Override
+                public String getIdSensor() {
+                    return "SENSOR-MOCK-001";
+                }
+            };
+
+            double leitura = sensorMock.transmitirDadosSensor();
+
+            assert leitura == 45.0 : "Leitura do mock deve ser 45.0";
+            assert sensorMock.getIdSensor().equals("SENSOR-MOCK-001");
+
+            System.out.println("Sensor: " + sensorMock.getIdSensor());
+            System.out.println("Leitura capturada: " + leitura + " cm");
+            sucesso("Mock IoT capturou dados corretamente.");
+        } catch (Exception e) {
+            falha(e.getMessage());
+        }
+    }
+
+    // =========================================================================
+    // TESTE 5 — Relatório de prioridade completo
+    // =========================================================================
+
+    private static void testarRelatorioCompleto() {
+        titulo("TESTE 5 — Relatório de Prioridade automático");
+        try {
+            EquipeManutencao equipeAlpha = new EquipeManutencao("Equipe Alpha", 6);
+            EquipeManutencao equipeBeta  = new EquipeManutencao("Equipe Beta",  4);
+
+            // Montagem do array de trechos com cenários variados
+            TrechoRodovia[] trechos = {
+                    criarTrecho(new TrechoUmidoMonitorado(0,  10, 20.0, 1.0, "SENSOR-BR116-KM05"), 15, null),
+                    criarTrecho(new TrechoUmido(10, 20, 10.0, 1.8),  20, null),       // chuvas intensas
+                    criarTrecho(new TrechoSeco(20,  30, 5.0,  false), 30, null),       // crescimento lento
+                    criarTrecho(new TrechoUmido(30, 40, 50.0, 1.0),   5, equipeAlpha), // já crítico
+                    criarTrecho(new TrechoSeco(40,  50, 70.0, false),  5, equipeBeta), // urgente
+                    criarTrecho(new TrechoUmidoMonitorado(50, 60, 75.0, 2.0, "SENSOR-BR116-KM55"), 3, null),
+            };
+
+            GeradorRelatorio gerador = new GeradorRelatorio();
+            gerador.gerarRelatorio(trechos);
+
+            // Testa intervenções nas classes concretas
+            titulo("TESTE 5b — Executando intervenções recomendadas");
+            TrechoRodovia trechoUrgente = trechos[4]; // TrechoSeco KM 40-50
+            new RocadaMecanizada(trechoUrgente, equipeBeta).executarServico();
+
+            TrechoRodovia trechoCritico = trechos[3]; // TrechoUmido KM 30-40
+            new Pulverizacao(trechoCritico, equipeAlpha,
+                    Pulverizacao.TipoProduto.HERBICIDA_SELETIVO).executarServico();
+
+            sucesso("Relatório e intervenções executados com sucesso.");
+        } catch (Exception e) {
+            falha("Erro inesperado: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    // =========================================================================
+    // Utilitário: cria trecho, simula crescimento e associa equipe
+    // =========================================================================
+
+    private static TrechoRodovia criarTrecho(TrechoRodovia trecho, int dias,
+                                             EquipeManutencao equipe) {
+        trecho.simularCrescimento(dias);
+        if (equipe != null) trecho.associarEquipe(equipe);
+        return trecho;
+    }
+
+    // =========================================================================
     // Utilitários de exibição
+    // =========================================================================
+
     private static void titulo(String descricao) {
         System.out.println("\n" + SEPARADOR);
         System.out.println("  " + descricao);
