@@ -1,78 +1,63 @@
 -- =====================================================================
 -- MOTIVA - Sistema de Monitoramento e Priorização de Roçada
--- Script de criação das tabelas (Sprint 3)
--- Baseado nas classes: EquipeManutencao, TrechoRodovia (+ TrechoUmido/
--- TrechoSeco/TrechoUmidoMonitorado), IntervencaoOperacional
--- (+ RocadaMecanizada/Pulverizacao) e no relatório gerado por GeradorRelatorio
+-- Script de dados de teste (Sprint 3)
+-- Rode DEPOIS de create_tables.sql, uma única vez.
 -- =====================================================================
 
--- Rode este script uma única vez (após conectar no Oracle do laboratório).
--- Se precisar recriar do zero, rode antes: @seu-script-drop.sql (opcional)
+-- ---------------------------------------------------------------------
+-- 1) EQUIPE_MANUTENCAO
+-- ---------------------------------------------------------------------
+INSERT INTO EQUIPE_MANUTENCAO (NOME, QUANTIDADE_INTEGRANTES) VALUES ('Equipe Alpha', 6);
+INSERT INTO EQUIPE_MANUTENCAO (NOME, QUANTIDADE_INTEGRANTES) VALUES ('Equipe Beta', 4);
+INSERT INTO EQUIPE_MANUTENCAO (NOME, QUANTIDADE_INTEGRANTES) VALUES ('Equipe Gama', 5);
 
 -- ---------------------------------------------------------------------
--- 1) EQUIPE_MANUTENCAO  <-  classe EquipeManutencao
+-- 2) TRECHO_RODOVIA
+--    TIPO_TRECHO: UMIDO | SECO | UMIDO_MONITORADO
 -- ---------------------------------------------------------------------
-CREATE TABLE EQUIPE_MANUTENCAO (
-    ID                      NUMBER          GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    NOME                    VARCHAR2(100)   NOT NULL,
-    QUANTIDADE_INTEGRANTES  NUMBER(3)       NOT NULL,
-    CONSTRAINT CK_EQUIPE_NOME_NAO_VAZIO CHECK (TRIM(NOME) IS NOT NULL),
-    CONSTRAINT CK_EQUIPE_QTD_MINIMA     CHECK (QUANTIDADE_INTEGRANTES >= 1)
-);
+INSERT INTO TRECHO_RODOVIA
+(QUILOMETRO_INICIAL, QUILOMETRO_FINAL, NIVEL_VEGETACAO_CM, TIPO_TRECHO, INDICE_PLUVIOMETRICO, EM_ESTACAO_SECA, ID_SENSOR, ID_EQUIPE_RESPONSAVEL)
+VALUES (0, 10, 72.5, 'UMIDO_MONITORADO', 1.20, NULL, 'SENSOR-BR116-KM05', NULL);
+
+INSERT INTO TRECHO_RODOVIA
+(QUILOMETRO_INICIAL, QUILOMETRO_FINAL, NIVEL_VEGETACAO_CM, TIPO_TRECHO, INDICE_PLUVIOMETRICO, EM_ESTACAO_SECA, ID_SENSOR, ID_EQUIPE_RESPONSAVEL)
+VALUES (10, 20, 46.0, 'UMIDO', 1.80, NULL, NULL, (SELECT ID FROM EQUIPE_MANUTENCAO WHERE NOME = 'Equipe Alpha'));
+
+INSERT INTO TRECHO_RODOVIA
+(QUILOMETRO_INICIAL, QUILOMETRO_FINAL, NIVEL_VEGETACAO_CM, TIPO_TRECHO, INDICE_PLUVIOMETRICO, EM_ESTACAO_SECA, ID_SENSOR, ID_EQUIPE_RESPONSAVEL)
+VALUES (20, 30, 41.0, 'SECO', NULL, 'N', NULL, NULL);
+
+INSERT INTO TRECHO_RODOVIA
+(QUILOMETRO_INICIAL, QUILOMETRO_FINAL, NIVEL_VEGETACAO_CM, TIPO_TRECHO, INDICE_PLUVIOMETRICO, EM_ESTACAO_SECA, ID_SENSOR, ID_EQUIPE_RESPONSAVEL)
+VALUES (30, 40, 88.0, 'SECO', NULL, 'S', NULL, (SELECT ID FROM EQUIPE_MANUTENCAO WHERE NOME = 'Equipe Beta'));
+
+INSERT INTO TRECHO_RODOVIA
+(QUILOMETRO_INICIAL, QUILOMETRO_FINAL, NIVEL_VEGETACAO_CM, TIPO_TRECHO, INDICE_PLUVIOMETRICO, EM_ESTACAO_SECA, ID_SENSOR, ID_EQUIPE_RESPONSAVEL)
+VALUES (40, 50, 18.0, 'UMIDO', 1.00, NULL, NULL, NULL);
 
 -- ---------------------------------------------------------------------
--- 2) TRECHO_RODOVIA  <-  TrechoRodovia / TrechoUmido / TrechoSeco /
---    TrechoUmidoMonitorado (hierarquia representada em uma única tabela,
---    diferenciada pela coluna TIPO_TRECHO)
+-- 3) INTERVENCAO_OPERACIONAL
+--    TIPO_INTERVENCAO: ROCADA_MECANIZADA | PULVERIZACAO
 -- ---------------------------------------------------------------------
-CREATE TABLE TRECHO_RODOVIA (
-    ID                      NUMBER          GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    QUILOMETRO_INICIAL      NUMBER(6)       NOT NULL,
-    QUILOMETRO_FINAL        NUMBER(6)       NOT NULL,
-    NIVEL_VEGETACAO_CM      NUMBER(7,2)     NOT NULL,
-    TIPO_TRECHO             VARCHAR2(30)    NOT NULL,
-    INDICE_PLUVIOMETRICO    NUMBER(4,2),        -- só para UMIDO / UMIDO_MONITORADO
-    EM_ESTACAO_SECA         CHAR(1)         DEFAULT 'N',  -- só para SECO
-    ID_SENSOR               VARCHAR2(50),       -- só para UMIDO_MONITORADO
-    ID_EQUIPE_RESPONSAVEL   NUMBER,
-    CONSTRAINT CK_TRECHO_KM        CHECK (QUILOMETRO_FINAL > QUILOMETRO_INICIAL),
-    CONSTRAINT CK_TRECHO_KM_INI    CHECK (QUILOMETRO_INICIAL >= 0),
-    CONSTRAINT CK_TRECHO_NIVEL     CHECK (NIVEL_VEGETACAO_CM >= 0),
-    CONSTRAINT CK_TRECHO_TIPO      CHECK (TIPO_TRECHO IN ('UMIDO','SECO','UMIDO_MONITORADO')),
-    CONSTRAINT CK_TRECHO_ESTACAO   CHECK (EM_ESTACAO_SECA IN ('S','N')),
-    CONSTRAINT FK_TRECHO_EQUIPE    FOREIGN KEY (ID_EQUIPE_RESPONSAVEL)
-                                    REFERENCES EQUIPE_MANUTENCAO(ID)
-);
+INSERT INTO INTERVENCAO_OPERACIONAL (ID_TRECHO_ALVO, ID_EQUIPE_RESPONSAVEL, TIPO_INTERVENCAO, TIPO_PRODUTO)
+VALUES (
+           (SELECT ID FROM TRECHO_RODOVIA WHERE QUILOMETRO_INICIAL = 30 AND QUILOMETRO_FINAL = 40),
+           (SELECT ID FROM EQUIPE_MANUTENCAO WHERE NOME = 'Equipe Beta'),
+           'ROCADA_MECANIZADA', NULL
+       );
+
+INSERT INTO INTERVENCAO_OPERACIONAL (ID_TRECHO_ALVO, ID_EQUIPE_RESPONSAVEL, TIPO_INTERVENCAO, TIPO_PRODUTO)
+VALUES (
+           (SELECT ID FROM TRECHO_RODOVIA WHERE QUILOMETRO_INICIAL = 10 AND QUILOMETRO_FINAL = 20),
+           (SELECT ID FROM EQUIPE_MANUTENCAO WHERE NOME = 'Equipe Alpha'),
+           'PULVERIZACAO', 'HERBICIDA_SELETIVO'
+       );
 
 -- ---------------------------------------------------------------------
--- 3) INTERVENCAO_OPERACIONAL  <-  IntervencaoOperacional / RocadaMecanizada
---    / Pulverizacao
+-- 4) RELATORIO_PRIORIDADE
+--    Snapshot de exemplo, equivalente a uma execução manual do service.GeradorRelatorio
 -- ---------------------------------------------------------------------
-CREATE TABLE INTERVENCAO_OPERACIONAL (
-    ID                      NUMBER          GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    ID_TRECHO_ALVO          NUMBER          NOT NULL,
-    ID_EQUIPE_RESPONSAVEL   NUMBER          NOT NULL,
-    TIPO_INTERVENCAO        VARCHAR2(30)    NOT NULL,   -- ROCADA_MECANIZADA / PULVERIZACAO
-    TIPO_PRODUTO            VARCHAR2(30),               -- só para PULVERIZACAO
-    DATA_EXECUCAO           TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
-    CONSTRAINT CK_INTERV_TIPO   CHECK (TIPO_INTERVENCAO IN ('ROCADA_MECANIZADA','PULVERIZACAO')),
-    CONSTRAINT FK_INTERV_TRECHO FOREIGN KEY (ID_TRECHO_ALVO)
-                                 REFERENCES TRECHO_RODOVIA(ID),
-    CONSTRAINT FK_INTERV_EQUIPE FOREIGN KEY (ID_EQUIPE_RESPONSAVEL)
-                                 REFERENCES EQUIPE_MANUTENCAO(ID)
-);
-
--- ---------------------------------------------------------------------
--- 4) RELATORIO_PRIORIDADE  <-  histórico gerado por GeradorRelatorio
--- ---------------------------------------------------------------------
-CREATE TABLE RELATORIO_PRIORIDADE (
-    ID                      NUMBER          GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    DATA_GERACAO            TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
-    QT_URGENTE              NUMBER(5)       NOT NULL,
-    QT_CRITICO              NUMBER(5)       NOT NULL,
-    QT_ATENCAO              NUMBER(5)       NOT NULL,
-    QT_NORMAL               NUMBER(5)       NOT NULL,
-    RESUMO                  VARCHAR2(4000)
-);
+INSERT INTO RELATORIO_PRIORIDADE (QT_URGENTE, QT_CRITICO, QT_ATENCAO, QT_NORMAL, RESUMO)
+VALUES (1, 1, 2, 1, '5 trecho(s) analisado(s): 1 urgente(s), 1 critico(s), 2 em atencao, 1 normal(is).');
 
 COMMIT;

@@ -1,3 +1,5 @@
+package model;
+
 /**
  * Intervenção de pulverização herbicida — indicada para trechos críticos
  * (>= 50 cm) que não atingiram ainda o nível de roçada mecanizada,

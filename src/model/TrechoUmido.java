@@ -1,3 +1,5 @@
+package model;
+
 /**
  * Trecho de rodovia em região úmida (margens de rios, baixadas, matas ciliares).
  *

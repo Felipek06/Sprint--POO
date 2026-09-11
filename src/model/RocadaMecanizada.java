@@ -1,3 +1,5 @@
+package model;
+
 /**
  * Intervenção de roçada mecanizada — utilizada em vegetação densa (>= 80 cm).
  *

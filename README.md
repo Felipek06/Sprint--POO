@@ -7,7 +7,7 @@ Sistema de Monitoramento e Priorização de Roçada de Vegetação em Rodovias
 Modelar o trecho da rodovia e as equipes de manutenção, produzindo um protótipo em console que instancia diferentes trechos, registra níveis simulados de crescimento de vegetação e associa uma equipe de manutenção a um trecho crítico.
 
 ### Classes produzidas
-## TrechoRodovia
+## model.TrechoRodovia
 
 Representa um segmento de rodovia com controle de vegetação. Atributos:
 •	quilometroInicial — km de início do trecho (>= 0)
@@ -17,20 +17,20 @@ Representa um segmento de rodovia com controle de vegetação. Atributos:
 
 Comportamentos:
 •	registrarCrescimento(double taxaCm) — incrementa o nível de vegetação
-•	associarEquipe(EquipeManutencao equipe) — vincula uma equipe ao trecho
+•	associarEquipe(model.EquipeManutencao equipe) — vincula uma equipe ao trecho
 •	isCritico() — retorna true se nivelVegetacaoCm >= 50 cm
 
 
-## EquipeManutencao
+## model.EquipeManutencao
 Representa uma equipe responsável pela roçada. Atributos:
 •	nome — identificador da equipe (não vazio)
 •	quantidadeIntegrantes — número de membros (>= 1)
 
 ### Perguntas de Reflexão
-## 1. Por que TrechoRodovia é uma classe e "BR-116 KM 10 ao 15" é um objeto?
+## 1. Por que model.TrechoRodovia é uma classe e "BR-116 KM 10 ao 15" é um objeto?
 Classe é o molde — ela define quais atributos e comportamentos um trecho de rodovia pode ter: quilômetro inicial, quilômetro final, nível de vegetação, métodos de crescimento, etc. A classe não existe na memória como dado concreto; ela é uma descrição.
 
-Objeto é uma instância concreta desse molde, com valores reais ocupando espaço na memória. Quando escrevemos new TrechoRodovia(10, 15, 5.0), estamos criando o objeto "BR-116 KM 10 ao 15" — um trecho específico, com dados reais, que pode registrar crescimento e ser associado a uma equipe.
+Objeto é uma instância concreta desse molde, com valores reais ocupando espaço na memória. Quando escrevemos new model.TrechoRodovia(10, 15, 5.0), estamos criando o objeto "BR-116 KM 10 ao 15" — um trecho específico, com dados reais, que pode registrar crescimento e ser associado a uma equipe.
 
 Analogia: a planta baixa de uma casa é a classe; a casa construída no terreno é o objeto. Podem existir várias casas (objetos) feitas a partir da mesma planta (classe).
 
@@ -50,7 +50,7 @@ Esse valor atravessaria todas as camadas sem nenhuma validação. O sistema de p
 
 O problema mais grave não é o valor em si — é que o ponto de corrupção estaria longe do ponto de falha. A quebra aconteceria silenciosamente numa atribuição qualquer; o sintoma apareceria muito depois, num relatório de prioridade ou numa equipe despachada para o lugar errado. Com o atributo privado e a validação no método, o erro explode imediatamente onde o dado inválido é inserido, facilitando muito o diagnóstico.
 
-### Testes Unitários cobertos no Main
+### Testes Unitários cobertos no main.Main
 
 •	Teste 1 — Instanciação válida de dois trechos (objeto não nulo)
 •	Teste 2 — Crescimento válido: 10 cm + 5 cm = 15 cm
@@ -64,7 +64,7 @@ O problema mais grave não é o valor em si — é que o ponto de corrupção es
 •	Teste 10 — Associar equipe nula ao trecho é rejeitado
 
 ### Decisões de Clean Code
-•	Nomes expressivos: classes com substantivos (TrechoRodovia, EquipeManutencao), métodos com verbos no infinitivo (registrarCrescimento, associarEquipe).
+•	Nomes expressivos: classes com substantivos (model.TrechoRodovia, model.EquipeManutencao), métodos com verbos no infinitivo (registrarCrescimento, associarEquipe).
 •	Exceções em vez de prints: IllegalArgumentException permite que o chamador decida como tratar o erro.
 •	Validações privadas isoladas: cada regra de domínio vive em seu próprio método privado, mantendo o construtor limpo.
 •	Sem setters públicos desnecessários: o estado só muda por métodos de domínio com semântica clara.
@@ -81,26 +81,26 @@ Criar o motor de inteligência do sistema: diferentes comportamentos de crescime
 
 ## Evolução em relação à Sprint 1
 
-- **`TrechoRodovia` tornou-se abstrata** — não faz sentido instanciar um trecho sem tipo de terreno definido.
-- Dois novos tipos concretos: `TrechoUmido` (cresce ~3,5 cm/dia) e `TrechoSeco` (cresce ~1,2 cm/dia).
+- **`model.TrechoRodovia` tornou-se abstrata** — não faz sentido instanciar um trecho sem tipo de terreno definido.
+- Dois novos tipos concretos: `model.TrechoUmido` (cresce ~3,5 cm/dia) e `model.TrechoSeco` (cresce ~1,2 cm/dia).
 - Novo método `simularCrescimento(int dias)` usa a taxa própria de cada subclasse — polimorfismo em ação.
-- Todas as classes da Sprint 1 são retrocompatíveis; `EquipeManutencao` não sofreu alteração.
+- Todas as classes da Sprint 1 são retrocompatíveis; `model.EquipeManutencao` não sofreu alteração.
 ---
 
 ## Arquitetura — Classes e Interfaces
 
 | Arquivo | Tipo | Responsabilidade |
 |---|---|---|
-| `TrechoRodovia` | Classe Abstrata | Modelo base de todos os trechos |
-| `TrechoUmido` | Subclasse concreta | Crescimento acelerado por umidade |
-| `TrechoSeco` | Subclasse concreta | Crescimento reduzido, estação seca |
-| `TrechoUmidoMonitorado` | Subclasse + Interface | Úmido com sensor IoT instalado |
-| `IntervencaoOperacional` | Classe Abstrata | Base de todas as intervenções |
-| `RocadaMecanizada` | Subclasse concreta | Intervenção com trator roçadeira |
-| `Pulverizacao` | Subclasse concreta | Herbicida / regulador de crescimento |
-| `MonitoravelViaIoT` | Interface | Contrato de transmissão de sensores |
-| `GeradorRelatorio` | Classe de serviço | Motor do relatório de prioridade |
-| `EquipeManutencao` | Classe concreta (S1) | Herdada da Sprint 1, sem alterações |
+| `model.TrechoRodovia` | Classe Abstrata | Modelo base de todos os trechos |
+| `model.TrechoUmido` | Subclasse concreta | Crescimento acelerado por umidade |
+| `model.TrechoSeco` | Subclasse concreta | Crescimento reduzido, estação seca |
+| `model.TrechoUmidoMonitorado` | Subclasse + Interface | Úmido com sensor IoT instalado |
+| `model.IntervencaoOperacional` | Classe Abstrata | Base de todas as intervenções |
+| `model.RocadaMecanizada` | Subclasse concreta | Intervenção com trator roçadeira |
+| `model.Pulverizacao` | Subclasse concreta | Herbicida / regulador de crescimento |
+| `model.MonitoravelViaIoT` | Interface | Contrato de transmissão de sensores |
+| `service.GeradorRelatorio` | Classe de serviço | Motor do relatório de prioridade |
+| `model.EquipeManutencao` | Classe concreta (S1) | Herdada da Sprint 1, sem alterações |
  
 ---
 
@@ -110,7 +110,7 @@ Criar o motor de inteligência do sistema: diferentes comportamentos de crescime
 
 No domínio da Motiva, toda ordem de serviço precisa especificar exatamente o que será executado: equipamento, produto, procedimento e custo variam completamente entre uma roçada mecanizada e uma pulverização herbicida. Uma "intervenção genérica" não carrega nenhuma dessas informações — ela é apenas um conceito, não uma ação real.
 
-**A classe abstrata força esse contrato em tempo de compilação.** Tentar escrever `new IntervencaoOperacional(trecho, equipe)` não compila. O desenvolvedor é obrigado a escolher `RocadaMecanizada` ou `Pulverizacao` — ou criar uma nova subclasse concreta para um serviço ainda não mapeado.
+**A classe abstrata força esse contrato em tempo de compilação.** Tentar escrever `new model.IntervencaoOperacional(trecho, equipe)` não compila. O desenvolvedor é obrigado a escolher `model.RocadaMecanizada` ou `model.Pulverizacao` — ou criar uma nova subclasse concreta para um serviço ainda não mapeado.
 
 > Analogia do domínio: um gestor de campo não despacha uma equipe para fazer "alguma coisa" no KM 42. Ele emite uma OS de roçada mecanizada ou de pulverização. A abstração no código reflete essa realidade operacional.
  
@@ -118,9 +118,9 @@ No domínio da Motiva, toda ordem de serviço precisa especificar exatamente o q
 
 ### 2. Diferença arquitetural: herdar classe abstrata vs. implementar interface
 
-**Herança (`extends` classe abstrata)** define *o que o objeto é* — sua identidade e tipo na hierarquia. `TrechoUmido extends TrechoRodovia` significa que um trecho úmido *é um* trecho de rodovia, compartilha todos os seus atributos e comportamentos, e só pode ter um pai (Java não tem herança múltipla).
+**Herança (`extends` classe abstrata)** define *o que o objeto é* — sua identidade e tipo na hierarquia. `model.TrechoUmido extends model.TrechoRodovia` significa que um trecho úmido *é um* trecho de rodovia, compartilha todos os seus atributos e comportamentos, e só pode ter um pai (Java não tem herança múltipla).
 
-**Interface (`implements`)** define *o que o objeto sabe fazer* — uma capacidade adicional desacoplada da hierarquia. `TrechoUmidoMonitorado implements MonitoravelViaIoT` significa que esse trecho *sabe transmitir dados de sensor*, mas isso não muda sua identidade como `TrechoRodovia`. Amanhã, um `TrechoSeco` também pode ganhar sensor sem mudar sua hierarquia — basta implementar a mesma interface.
+**Interface (`implements`)** define *o que o objeto sabe fazer* — uma capacidade adicional desacoplada da hierarquia. `model.TrechoUmidoMonitorado implements model.MonitoravelViaIoT` significa que esse trecho *sabe transmitir dados de sensor*, mas isso não muda sua identidade como `model.TrechoRodovia`. Amanhã, um `model.TrechoSeco` também pode ganhar sensor sem mudar sua hierarquia — basta implementar a mesma interface.
 
 A regra prática para decidir:
 
@@ -129,13 +129,13 @@ A regra prática para decidir:
 | "X **é um** Y" | `extends` (herança) |
 | "X **sabe fazer** Y" | `implements` (interface) |
 
-**Benefício arquitetural chave:** o `GeradorRelatorio` pode chamar `sensor.transmitirDadosSensor()` em qualquer objeto que implemente `MonitoravelViaIoT` — seja trecho úmido, seco, urbano ou um mock de teste — sem conhecer a classe concreta. Isso é o desacoplamento que o Interface Segregation Principle promove.
+**Benefício arquitetural chave:** o `service.GeradorRelatorio` pode chamar `sensor.transmitirDadosSensor()` em qualquer objeto que implemente `model.MonitoravelViaIoT` — seja trecho úmido, seco, urbano ou um mock de teste — sem conhecer a classe concreta. Isso é o desacoplamento que o Interface Segregation Principle promove.
  
 ---
 
 ## Lógica do Relatório de Prioridade
 
-O `GeradorRelatorio` classifica cada trecho em quatro faixas:
+O `service.GeradorRelatorio` classifica cada trecho em quatro faixas:
 
 | Nível (cm) | Prioridade | Intervenção recomendada |
 |---|---|---|
@@ -144,31 +144,31 @@ O `GeradorRelatorio` classifica cada trecho em quatro faixas:
 | >= 25 cm | 🟡 ATENÇÃO | Agendar roçada manual nas próximas 2 semanas |
 | < 25 cm | 🟢 NORMAL | Monitoramento de rotina |
 
-Para trechos `MonitoravelViaIoT`, o relatório consulta `transmitirDadosSensor()` antes de classificar, atualizando o nível automaticamente sem necessidade de inspeção visual.
+Para trechos `model.MonitoravelViaIoT`, o relatório consulta `transmitirDadosSensor()` antes de classificar, atualizando o nível automaticamente sem necessidade de inspeção visual.
  
 ---
 
-## Testes cobertos no Main
+## Testes cobertos no main.Main
 
 | # | Cenário | O que valida |
 |---|---|---|
-| 1 | Polimorfismo de crescimento | `TrechoUmido` cresce mais que `TrechoSeco` no mesmo período |
-| 2 | Abstrações não instanciáveis | Reflexão confirma que `TrechoRodovia` e `IntervencaoOperacional` são abstratas |
-| 3 | Contrato IoT | Apenas `TrechoUmidoMonitorado` implementa `MonitoravelViaIoT` |
+| 1 | Polimorfismo de crescimento | `model.TrechoUmido` cresce mais que `model.TrechoSeco` no mesmo período |
+| 2 | Abstrações não instanciáveis | Reflexão confirma que `model.TrechoRodovia` e `model.IntervencaoOperacional` são abstratas |
+| 3 | Contrato IoT | Apenas `model.TrechoUmidoMonitorado` implementa `model.MonitoravelViaIoT` |
 | 4 | Mock IoT | Objeto anônimo implementa a interface e retorna leitura determinística |
 | 5 | Relatório completo | Array de 6 trechos gera relatório com classificação e resumo executivo |
-| 5b | Execução de intervenções | `RocadaMecanizada` e `Pulverizacao` executam sobre trechos urgente e crítico |
+| 5b | Execução de intervenções | `model.RocadaMecanizada` e `model.Pulverizacao` executam sobre trechos urgente e crítico |
  
 ---
 
 ## Decisões de Clean Code
 
-- **Classes abstratas com `protected`:** o construtor de `TrechoRodovia` é `protected` — impede instanciação direta mesmo por reflexão.
-- **Interface enxuta (ISP):** `MonitoravelViaIoT` tem apenas 2 métodos. Nenhuma responsabilidade de trecho ou equipe vazou para ela.
-- **Enum interno em `Pulverizacao`:** `TipoProduto` torna o tipo de produto explícito e seguro em vez de usar strings livres.
-- **Enum privado em `GeradorRelatorio`:** `Prioridade` encapsula a lógica de classificação dentro do gerador, sem expor ao restante do sistema.
-- **Pattern matching (`instanceof`):** uso de `trecho instanceof MonitoravelViaIoT sensor` (Java 16+) evita cast explícito e torna o código mais seguro e legível.
-- **Método template protegido:** `imprimirCabecalhoExecucao()` em `IntervencaoOperacional` padroniza a saída de todas as subclasses sem duplicar código.
+- **Classes abstratas com `protected`:** o construtor de `model.TrechoRodovia` é `protected` — impede instanciação direta mesmo por reflexão.
+- **Interface enxuta (ISP):** `model.MonitoravelViaIoT` tem apenas 2 métodos. Nenhuma responsabilidade de trecho ou equipe vazou para ela.
+- **Enum interno em `model.Pulverizacao`:** `TipoProduto` torna o tipo de produto explícito e seguro em vez de usar strings livres.
+- **Enum privado em `service.GeradorRelatorio`:** `Prioridade` encapsula a lógica de classificação dentro do gerador, sem expor ao restante do sistema.
+- **Pattern matching (`instanceof`):** uso de `trecho instanceof model.MonitoravelViaIoT sensor` (Java 16+) evita cast explícito e torna o código mais seguro e legível.
+- **Método template protegido:** `imprimirCabecalhoExecucao()` em `model.IntervencaoOperacional` padroniza a saída de todas as subclasses sem duplicar código.
  
 
 

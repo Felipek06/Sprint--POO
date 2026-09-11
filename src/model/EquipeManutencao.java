@@ -1,8 +1,13 @@
+package model;
+
 /**
  * Representa uma equipe de manutenção responsável pela roçada
  * de vegetação em trechos de rodovias.
  */
 public class EquipeManutencao {
+
+    /** Identificador da linha em EQUIPE_MANUTENCAO. Nulo enquanto não persistido. */
+    private Long id;
 
     private final String nome;
     private final int quantidadeIntegrantes;
@@ -27,6 +32,10 @@ public class EquipeManutencao {
 
     public String getNome()                  { return nome; }
     public int    getQuantidadeIntegrantes() { return quantidadeIntegrantes; }
+
+    public Long getId()          { return id; }
+    /** Usado apenas pela camada de persistência (EquipeManutencaoDAO) para hidratar o id. */
+    public void setId(Long id)   { this.id = id; }
 
     @Override
     public String toString() {

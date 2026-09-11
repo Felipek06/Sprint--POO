@@ -1,3 +1,5 @@
+package model;
+
 public abstract class IntervencaoOperacional {
 
     private final TrechoRodovia   trechoAlvo;

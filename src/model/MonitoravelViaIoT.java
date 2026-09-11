@@ -1,3 +1,5 @@
+package model;
+
 /**
  * Contrato para trechos equipados com sensores IoT de monitoramento vegetal.
  *

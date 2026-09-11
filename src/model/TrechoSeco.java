@@ -1,3 +1,5 @@
+package model;
+
 /**
  * Trecho de rodovia em região seca (cerrado, caatinga, zonas áridas).
  *

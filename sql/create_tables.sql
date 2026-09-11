@@ -1,16 +1,16 @@
 -- =====================================================================
 -- MOTIVA - Sistema de Monitoramento e Priorização de Roçada
 -- Script de criação das tabelas (Sprint 3)
--- Baseado nas classes: EquipeManutencao, TrechoRodovia (+ TrechoUmido/
--- TrechoSeco/TrechoUmidoMonitorado), IntervencaoOperacional
--- (+ RocadaMecanizada/Pulverizacao) e no relatório gerado por GeradorRelatorio
+-- Baseado nas classes: model.EquipeManutencao, model.TrechoRodovia (+ model.TrechoUmido/
+-- model.TrechoSeco/model.TrechoUmidoMonitorado), model.IntervencaoOperacional
+-- (+ model.RocadaMecanizada/model.Pulverizacao) e no relatório gerado por service.GeradorRelatorio
 -- =====================================================================
 
 -- Rode este script uma única vez (após conectar no Oracle do laboratório).
 -- Se precisar recriar do zero, rode antes: @seu-script-drop.sql (opcional)
 
 -- ---------------------------------------------------------------------
--- 1) EQUIPE_MANUTENCAO  <-  classe EquipeManutencao
+-- 1) EQUIPE_MANUTENCAO  <-  classe model.EquipeManutencao
 -- ---------------------------------------------------------------------
 CREATE TABLE EQUIPE_MANUTENCAO (
     ID                      NUMBER          GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -21,8 +21,8 @@ CREATE TABLE EQUIPE_MANUTENCAO (
 );
 
 -- ---------------------------------------------------------------------
--- 2) TRECHO_RODOVIA  <-  TrechoRodovia / TrechoUmido / TrechoSeco /
---    TrechoUmidoMonitorado (hierarquia representada em uma única tabela,
+-- 2) TRECHO_RODOVIA  <-  model.TrechoRodovia / model.TrechoUmido / model.TrechoSeco /
+--    model.TrechoUmidoMonitorado (hierarquia representada em uma única tabela,
 --    diferenciada pela coluna TIPO_TRECHO)
 -- ---------------------------------------------------------------------
 CREATE TABLE TRECHO_RODOVIA (
@@ -45,8 +45,8 @@ CREATE TABLE TRECHO_RODOVIA (
 );
 
 -- ---------------------------------------------------------------------
--- 3) INTERVENCAO_OPERACIONAL  <-  IntervencaoOperacional / RocadaMecanizada
---    / Pulverizacao
+-- 3) INTERVENCAO_OPERACIONAL  <-  model.IntervencaoOperacional / model.RocadaMecanizada
+--    / model.Pulverizacao
 -- ---------------------------------------------------------------------
 CREATE TABLE INTERVENCAO_OPERACIONAL (
     ID                      NUMBER          GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -63,7 +63,7 @@ CREATE TABLE INTERVENCAO_OPERACIONAL (
 );
 
 -- ---------------------------------------------------------------------
--- 4) RELATORIO_PRIORIDADE  <-  histórico gerado por GeradorRelatorio
+-- 4) RELATORIO_PRIORIDADE  <-  histórico gerado por service.GeradorRelatorio
 -- ---------------------------------------------------------------------
 CREATE TABLE RELATORIO_PRIORIDADE (
     ID                      NUMBER          GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

@@ -1,3 +1,5 @@
+package model;
+
 /**
  * Trecho úmido equipado com sensor IoT de monitoramento vegetal.
  *

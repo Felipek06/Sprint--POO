@@ -1,3 +1,11 @@
+package service;
+
+import dao.RelatorioPrioridadeDAO;
+import model.MonitoravelViaIoT;
+import model.TrechoRodovia;
+
+import java.sql.SQLException;
+
 /**
  * Motor de geração do Relatório de Prioridade de Roçada.
  *
@@ -11,6 +19,9 @@
  *  nivelVegetacao <  25 cm → NORMAL    → Sem intervenção necessária
  *
  * Para trechos IoT, o relatório consulta o sensor antes de classificar.
+ *
+ * Sprint 3: além de imprimir no console, cada execução agora é persistida
+ * no histórico da tabela RELATORIO_PRIORIDADE através do RelatorioPrioridadeDAO.
  */
 public class GeradorRelatorio {
 
@@ -34,6 +45,7 @@ public class GeradorRelatorio {
         atualizarTrechosIoT(trechos);
         imprimirCorpoRelatorio(trechos);
         imprimirResumo(trechos);
+        salvarHistorico(trechos);
     }
 
     // -------------------------------------------------------------------------
@@ -101,6 +113,35 @@ public class GeradorRelatorio {
         System.out.printf(" 🟡 ATENÇÃO  (Agendar intervenção)        : %d trecho(s)%n", atencao);
         System.out.printf(" 🟢 NORMAL   (Sem ação necessária)        : %d trecho(s)%n", normais);
         System.out.println(SEPARADOR + "\n");
+    }
+
+    // -------------------------------------------------------------------------
+    // Persistência do histórico (Sprint 3)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Salva o resultado desta execução do relatório na tabela RELATORIO_PRIORIDADE,
+     * através do RelatorioPrioridadeDAO. Uma falha de banco não deve derrubar o
+     * relatório já impresso no console — apenas é reportada.
+     */
+    private void salvarHistorico(TrechoRodovia[] trechos) {
+        long urgentes = contarPorPrioridade(trechos, Prioridade.URGENTE);
+        long criticos = contarPorPrioridade(trechos, Prioridade.CRITICO);
+        long atencao  = contarPorPrioridade(trechos, Prioridade.ATENCAO);
+        long normais  = contarPorPrioridade(trechos, Prioridade.NORMAL);
+
+        String resumo = String.format(
+                "%d trecho(s) analisado(s): %d urgente(s), %d crítico(s), %d em atenção, %d normal(is).",
+                trechos.length, urgentes, criticos, atencao, normais
+        );
+
+        try {
+            RelatorioPrioridadeDAO dao = new RelatorioPrioridadeDAO();
+            dao.salvarRelatorio((int) urgentes, (int) criticos, (int) atencao, (int) normais, resumo);
+            System.out.println(" 💾 Histórico do relatório salvo no banco (RELATORIO_PRIORIDADE).\n");
+        } catch (SQLException e) {
+            System.err.println(" ⚠ Não foi possível salvar o histórico do relatório: " + e.getMessage());
+        }
     }
 
     // -------------------------------------------------------------------------
