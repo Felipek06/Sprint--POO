@@ -1,0 +1,17 @@
+# Normaliza finais de linha no repositorio.
+* text=auto
+
+# Scripts de shell PRECISAM manter LF, senao quebram em Linux/macOS
+# ("bad interpreter: No such file or directory").
+*.sh      text eol=lf
+mvnw      text eol=lf
+
+# Scripts do Windows precisam de CRLF
+*.cmd     text eol=crlf
+*.bat     text eol=crlf
+
+# Binarios: o Git nao deve tentar converter nada
+*.pdf     binary
+*.jar     binary
+*.png     binary
+*.jpg     binary

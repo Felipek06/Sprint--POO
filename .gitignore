@@ -1,8 +1,27 @@
+### Maven ###
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+### Credenciais — NUNCA versionar ###
+# O projeto le ORACLE_USER e ORACLE_PASSWORD do ambiente.
+# Se voce criar um arquivo local com esses valores, ele fica fora do Git.
+.env
+*.env
+application-local.properties
+src/main/resources/application-local.properties
+
 ### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
-.kotlin
 
 ### Eclipse ###
 .apt_generated
@@ -26,5 +45,9 @@ bin/
 ### VS Code ###
 .vscode/
 
-### Mac OS ###
+### Sistema operacional ###
 .DS_Store
+Thumbs.db
+
+### Logs ###
+*.log
