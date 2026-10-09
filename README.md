@@ -337,9 +337,7 @@ RELATORIO_PRIORIDADE
 
 ## Objetivo da Sprint
 
-Transformar o protótipo de console da Sprint 3 em uma **API REST profissional**, substituindo o JDBC puro e o pattern DAO escrito à mão por Spring Boot e Spring Data JPA — reaproveitando o mesmo banco Oracle e as mesmas tabelas modeladas na sprint anterior.
-
-A mensagem da sprint cabe em duas linhas:
+Transformar o protótipo de console da Sprint 3 em uma **API REST**, substituindo o JDBC puro e o pattern DAO escrito à mão por Spring Boot e Spring Data JPA — reaproveitando o mesmo banco Oracle e as mesmas tabelas da sprint anterior.
 
 ```java
 // Sprint 3 (JDBC puro): ~40 linhas por operação
@@ -357,578 +355,249 @@ repository.save(trecho);
 | Sprint 3 (JDBC puro) | Sprint 4 (Spring Boot) | Papel |
 |---|---|---|
 | `model/` + `record` interno do DAO | `@Entity` em `model/` | Classe mapeada para a tabela via JPA |
-| `EquipeManutencaoDAO` (136 linhas) | `EquipeManutencaoRepository` (interface, 0 linhas de corpo) | Acesso a dados sem SQL manual |
+| `EquipeManutencaoDAO` (136 linhas) | `EquipeManutencaoRepository` (interface, sem corpo) | Acesso a dados sem SQL manual |
 | `db.ConexaoBD` (Singleton) | `application.properties` + pool HikariCP | Conexão gerenciada pelo framework |
 | `service.GeradorRelatorio` | `RelatorioPrioridadeService` (`@Service`) | Regras de negócio — continua existindo |
 | `Main.main()` com `System.out.println` | `@RestController` + JSON | Interface do sistema vira HTTP |
 | Teste manual no console | cURL / Postman + `@SpringBootTest` | A API é consumida por qualquer cliente |
 
-**O pattern DAO não morreu — ele foi absorvido.** O `Repository` do Spring Data é um DAO gerado pelo framework em tempo de execução. O que desapareceu foi a *implementação manual* do padrão, não o padrão.
+**O pattern DAO não morreu — foi absorvido.** O `Repository` do Spring Data é um DAO gerado pelo framework em tempo de execução. O que desapareceu foi a *implementação manual* do padrão.
 
-### O que foi eliminado nesta sprint
+O código novo não tem `Connection`, `PreparedStatement`, `ResultSet`, SQL manual, `System.out.println` como saída, nem lógica de negócio em Controller. Não existe um único `@Query` no projeto — todas as consultas são *derived queries*.
 
-- `Connection`, `PreparedStatement` e `ResultSet` no código novo;
-- SQL manual dentro de `@Service` ou `@RestController` — não existe um único `@Query` no projeto, todas as consultas são *derived queries*;
-- lógica de negócio dentro de `@RestController`;
-- `System.out.println` como interface do sistema — a saída agora é JSON.
-
-> O código das Sprints 1 a 3 continua versionado neste repositório, intocado, em `src/dao`, `src/db`, `src/model`, `src/service` e `src/main/Main.java`. Como o Maven compila apenas `src/main/java`, as duas versões convivem sem conflito de build: o `grep` abaixo não retorna nenhuma linha do projeto Spring Boot.
->
-> ```bash
-> grep -rn "PreparedStatement\|ResultSet\|System.out.print" src/main/java | grep -v '\*'
-> ```
+> O código das Sprints 1 a 3 continua versionado aqui, intocado, em `src/dao`, `src/db`, `src/model`, `src/service` e `src/main/Main.java`. Como o Maven compila apenas `src/main/java`, as duas versões convivem sem conflito de build.
 
 
 ## Arquitetura — Camadas Spring
 
 ```
 src/main/java/br/com/motiva/
-├── MotivaApplication.java      # @SpringBootApplication (main)
-├── model/                      # @Entity — entidades da Sprint 3
-│   ├── EquipeManutencao.java
-│   ├── TrechoRodovia.java            (abstrata, @Inheritance SINGLE_TABLE)
-│   ├── TrechoUmido.java              (@DiscriminatorValue "UMIDO")
-│   ├── TrechoSeco.java               (@DiscriminatorValue "SECO")
-│   ├── TrechoUmidoMonitorado.java    (@DiscriminatorValue "UMIDO_MONITORADO")
-│   ├── MonitoravelViaIoT.java        (interface — Sprint 2)
-│   ├── IntervencaoOperacional.java   (abstrata, @Inheritance SINGLE_TABLE)
-│   ├── RocadaMecanizada.java         (@DiscriminatorValue "ROCADA_MECANIZADA")
-│   ├── Pulverizacao.java             (@DiscriminatorValue "PULVERIZACAO")
-│   ├── RelatorioPrioridade.java
-│   ├── Prioridade.java               (enum com os limiares da Sprint 2)
-│   └── converter/BooleanSNConverter.java
-├── repository/                 # Interfaces JpaRepository — SEM SQL
-├── service/                    # @Service — regras de negócio
-├── controller/                 # @RestController — endpoints REST
-├── dto/                        # Contratos de entrada e saída da API
-└── exception/                  # @RestControllerAdvice + exceções de domínio
+├── MotivaApplication.java   # @SpringBootApplication
+├── model/                   # @Entity — as entidades da Sprint 3
+│   ├── TrechoRodovia + TrechoUmido / TrechoSeco / TrechoUmidoMonitorado
+│   ├── IntervencaoOperacional + RocadaMecanizada / Pulverizacao
+│   ├── EquipeManutencao, RelatorioPrioridade, MonitoravelViaIoT
+│   └── Prioridade (enum com os limiares da Sprint 2)
+├── repository/              # Interfaces JpaRepository — SEM SQL
+├── service/                 # @Service — regras de negócio
+├── controller/              # @RestController — endpoints REST
+├── dto/                     # Contratos de entrada e saída da API
+└── exception/               # @RestControllerAdvice + exceções de domínio
 ```
 
-**Fluxo entre camadas:** `Controller → Service → Repository → Banco`. Cada camada só conversa com a vizinha. O Controller nunca enxerga um `Repository`, e o `Repository` nunca enxerga um DTO.
+**Fluxo:** `Controller → Service → Repository → Banco`. Cada camada só conversa com a vizinha.
 
-### A herança da Sprint 2 virou herança de banco
+### A Single Table Inheritance da Sprint 3 virou herança de banco
 
-Na Sprint 3, o `TrechoRodoviaDAO` resolvia a Single Table Inheritance na unha: lia a coluna `TIPO_TRECHO`, abria um `switch` e chamava `new TrechoUmido(...)`, `new TrechoSeco(...)` ou `new TrechoUmidoMonitorado(...)` conforme o texto lido.
+Na Sprint 3, o `TrechoRodoviaDAO` resolvia a herança na unha: lia `TIPO_TRECHO`, abria um `switch` e chamava `new TrechoUmido(...)`, `new TrechoSeco(...)` ou `new TrechoUmidoMonitorado(...)`.
 
-Na Sprint 4 esse `switch` sumiu. `@Inheritance(SINGLE_TABLE)` declara que a hierarquia inteira mora em uma tabela, e `@DiscriminatorColumn` aponta qual coluna guarda o tipo. A partir daí é o próprio Hibernate que lê `TIPO_TRECHO` e instancia a subclasse certa — a mesma lógica, escrita uma vez por quem fez o framework em vez de uma vez por projeto.
-
-| Classe | Discriminador | Taxa de crescimento |
-|---|---|---|
-| `TrechoUmido` | `UMIDO` | 3,5 cm/dia × índice pluviométrico |
-| `TrechoSeco` | `SECO` | 1,2 cm/dia (×0,6 em estação seca) |
-| `TrechoUmidoMonitorado` | `UMIDO_MONITORADO` | herda de `TrechoUmido` + sensor IoT |
+Na Sprint 4 esse `switch` sumiu. `@Inheritance(SINGLE_TABLE)` declara que a hierarquia mora em uma tabela e `@DiscriminatorColumn` aponta qual coluna guarda o tipo — a partir daí é o Hibernate que instancia a subclasse certa. A modelagem do banco é exatamente a mesma.
 
 
-## Como executar
+## Como Executar
 
-### Pré-requisitos
+**Pré-requisitos:** Java 17 e acesso ao Oracle da FIAP com as tabelas da Sprint 3.
 
-- **Java 17** (o projeto não compila em versões anteriores)
-- **Maven** — opcional: o repositório traz o Maven Wrapper (`mvnw` / `mvnw.cmd`)
-- Acesso ao **Oracle da FIAP** com as tabelas da Sprint 3 criadas
-
-### Passo 1 — Migrar o banco da Sprint 3
-
-A Sprint 3 gerava o ID com `GENERATED ALWAYS AS IDENTITY`. A Sprint 4 exige `@GeneratedValue` com `@SequenceGenerator` ligado a *sequences*, e o Oracle recusa qualquer `INSERT` que informe o ID de uma coluna `GENERATED ALWAYS` (ORA-32795). Por isso a identity precisa sair e dar lugar a uma sequence.
-
-Conecte com o mesmo usuário da Sprint 3 e rode:
+**1. Migrar o banco.** A Sprint 3 gerava o ID com `GENERATED ALWAYS AS IDENTITY`; a Sprint 4 exige `@SequenceGenerator`, e o Oracle recusa `INSERT` com ID explícito em coluna identity (ORA-32795). Rode uma vez:
 
 ```sql
 @sql/02_migracao_sprint3_para_sprint4.sql
 ```
 
-O script é idempotente e **preserva todos os dados**: remove a identity de cada tabela e cria a sequence correspondente começando em `MAX(ID) + 1`, para não colidir com as linhas já gravadas.
+O script é idempotente e **preserva os dados**: troca a identity por uma sequence começando em `MAX(ID) + 1`. Para montar o schema do zero, use `01_create_tables_sprint4.sql` e `03_insert_data_sprint4.sql`.
 
-| Arquivo | Quando usar |
-|---|---|
-| `sql/create_tables.sql` · `sql/insert_data.sql` | Scripts originais da Sprint 3, mantidos como registro |
-| `sql/01_create_tables_sprint4.sql` | Schema vazio — cria tabelas e sequences do zero |
-| `sql/02_migracao_sprint3_para_sprint4.sql` | **Caso comum** — você já rodou a Sprint 3 e quer manter os dados |
-| `sql/03_insert_data_sprint4.sql` | Dados de teste, só depois do script 01 |
-
-### Passo 2 — Definir as credenciais
-
-Nenhuma senha fica no código nem no `application.properties`: o projeto lê as variáveis de ambiente `ORACLE_USER` e `ORACLE_PASSWORD`, mantendo a mesma prática que a `ConexaoBD` já adotava na Sprint 3.
-
-**Windows (PowerShell):**
+**2. Definir as credenciais.** Nenhuma senha fica no código nem no `application.properties` — ele lê `ORACLE_USER` e `ORACLE_PASSWORD` do ambiente, mantendo a prática que a `ConexaoBD` já adotava:
 
 ```powershell
-$env:ORACLE_USER = "rm564878"
+$env:ORACLE_USER = "rm564878"       # PowerShell
 $env:ORACLE_PASSWORD = "sua_senha"
 ```
 
-**Linux / macOS:**
-
 ```bash
-export ORACLE_USER=rm564878
+export ORACLE_USER=rm564878         # Linux / macOS
 export ORACLE_PASSWORD=sua_senha
 ```
 
-**IntelliJ IDEA:** `Run > Edit Configurations > Environment variables` → `ORACLE_USER=rm564878;ORACLE_PASSWORD=sua_senha`
-
-Se o laboratório usar `SERVICE_NAME` em vez de `SID`, defina também:
-
-```bash
-export ORACLE_URL='jdbc:oracle:thin:@//oracle.fiap.com.br:1521/ORCL'
-```
-
-### Passo 3 — Subir a aplicação
+**3. Subir a aplicação** em <http://localhost:8080>:
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-A API sobe em <http://localhost:8080>. No Windows, use `mvnw.cmd spring-boot:run`.
+O repositório traz o Maven Wrapper, então não é preciso ter Maven instalado. Para demonstrar sem o Oracle, existe o perfil `demo` com H2 em memória: `./mvnw spring-boot:run -Dspring-boot.run.profiles=demo`.
 
-### Modo demonstração (sem Oracle)
-
-Para demonstrar a API em uma máquina sem banco configurado — ou quando o Oracle da FIAP está fora do ar — existe o perfil `demo`, com H2 em memória:
-
-```bash
-./mvnw spring-boot:run -Dspring-boot.run.profiles=demo
-```
-
-Nesse modo o Hibernate cria o schema a partir das próprias entidades, inclusive as quatro sequences. Os dados somem quando a aplicação para. **O banco oficial do projeto continua sendo o Oracle da FIAP.**
-
-### Abrindo na IDE
-
-O repositório passou a ser um projeto Maven: importe-o pelo **`pom.xml`**, e não como projeto Java simples.
-
-- **IntelliJ IDEA:** `File > Open` → selecione o `pom.xml` → *Open as Project*
-- **VS Code:** extensão *Extension Pack for Java*, que detecta o `pom.xml` sozinho
-- **Eclipse:** `File > Import > Existing Maven Projects`
+> O projeto agora é Maven — importe pelo **`pom.xml`**, não como projeto Java simples.
 
 
-## Tabela de Endpoints
-
-### Trechos — `/api/trechos`
+## Endpoints
 
 | Método | Rota | Ação | Respostas |
 |---|---|---|---|
-| `GET` | `/api/trechos` | Listar todos | `200 OK` |
-| `GET` | `/api/trechos?tipo=SECO` | Filtrar por tipo (*derived query*) | `200 OK` |
-| `GET` | `/api/trechos?nivelMinimoCm=50` | Filtrar por nível mínimo (*derived query*) | `200 OK` |
-| `GET` | `/api/trechos?semEquipe=true` | Trechos sem equipe designada | `200 OK` |
-| `GET` | `/api/trechos/{id}` | Buscar por ID | `200 OK` / `404 Not Found` |
-| `POST` | `/api/trechos` | Criar | `201 Created` + `Location` / `400 Bad Request` |
-| `PUT` | `/api/trechos/{id}` | Atualizar | `200 OK` / `404` / `400` |
-| `POST` | `/api/trechos/{id}/simulacao?dias=10` | Simular crescimento (motor da Sprint 2) | `200 OK` / `404` / `400` |
-| `DELETE` | `/api/trechos/{id}` | Remover | `204 No Content` / `404` / `400` |
+| `GET` | `/api/trechos` | Listar todos | `200` |
+| `GET` | `/api/trechos?tipo=SECO` | Filtrar por tipo (*derived query*) | `200` |
+| `GET` | `/api/trechos?nivelMinimoCm=50` | Filtrar por nível (*derived query*) | `200` |
+| `GET` | `/api/trechos/{id}` | Buscar por ID | `200` / `404` |
+| `POST` | `/api/trechos` | Criar | `201` + `Location` / `400` |
+| `PUT` | `/api/trechos/{id}` | Atualizar | `200` / `404` / `400` |
+| `POST` | `/api/trechos/{id}/simulacao?dias=10` | Simular crescimento (Sprint 2) | `200` / `404` |
+| `DELETE` | `/api/trechos/{id}` | Remover | `204` / `404` / `400` |
+| `GET` `POST` `PUT` `DELETE` | `/api/equipes` · `/api/equipes/{id}` | CRUD de equipes | idem trechos |
+| `GET` `POST` `PUT` `DELETE` | `/api/intervencoes` · `/api/intervencoes/{id}` | CRUD de intervenções | idem trechos |
+| `POST` | `/api/relatorios` | Gerar o relatório e gravar no histórico | `201` + `Location` / `400` |
+| `GET` | `/api/relatorios` | Listar o histórico | `200` |
+| `GET` | `/api/relatorios/periodo?inicio=...&fim=...` | Consultar por período | `200` / `400` |
 
-### Equipes — `/api/equipes`
+`200` consulta ou atualização · `201` criado, com `Location` · `204` removido · `400` validação ou regra de negócio · `404` ID inexistente · `409` integridade do banco · `500` erro inesperado, com stack trace apenas no log.
 
-| Método | Rota | Ação | Respostas |
-|---|---|---|---|
-| `GET` | `/api/equipes` | Listar todas | `200 OK` |
-| `GET` | `/api/equipes?nome=alpha` | Buscar por parte do nome | `200 OK` |
-| `GET` | `/api/equipes?efetivoMinimo=5` | Equipes com efetivo mínimo | `200 OK` |
-| `GET` | `/api/equipes/{id}` | Buscar por ID | `200 OK` / `404` |
-| `POST` | `/api/equipes` | Criar | `201 Created` + `Location` / `400` |
-| `PUT` | `/api/equipes/{id}` | Atualizar | `200 OK` / `404` / `400` |
-| `DELETE` | `/api/equipes/{id}` | Remover | `204 No Content` / `404` / `400` |
-
-### Intervenções — `/api/intervencoes`
-
-| Método | Rota | Ação | Respostas |
-|---|---|---|---|
-| `GET` | `/api/intervencoes` | Listar todas | `200 OK` |
-| `GET` | `/api/intervencoes?tipo=PULVERIZACAO` | Filtrar por tipo (*derived query*) | `200 OK` |
-| `GET` | `/api/intervencoes?trechoId=3` | Histórico de um trecho | `200 OK` / `404` |
-| `GET` | `/api/intervencoes/{id}` | Buscar por ID | `200 OK` / `404` |
-| `POST` | `/api/intervencoes` | Registrar e executar | `201 Created` + `Location` / `404` / `400` |
-| `PUT` | `/api/intervencoes/{id}` | Atualizar | `200 OK` / `404` / `400` |
-| `DELETE` | `/api/intervencoes/{id}` | Remover | `204 No Content` / `404` |
-
-### Relatórios — `/api/relatorios`
-
-| Método | Rota | Ação | Respostas |
-|---|---|---|---|
-| `POST` | `/api/relatorios` | Gerar o relatório e gravar no histórico | `201 Created` + `Location` / `400` |
-| `GET` | `/api/relatorios` | Listar o histórico | `200 OK` |
-| `GET` | `/api/relatorios/periodo?inicio=...&fim=...` | Consultar por período | `200 OK` / `400` |
-| `GET` | `/api/relatorios/{id}` | Buscar um snapshot por ID | `200 OK` / `404` |
-
-### Códigos HTTP devolvidos pela API
-
-| Código | Quando |
-|---|---|
-| `200 OK` | Consulta ou atualização bem-sucedida |
-| `201 Created` | Recurso criado — corpo do recurso + cabeçalho `Location` |
-| `204 No Content` | Remoção bem-sucedida, sem corpo |
-| `400 Bad Request` | Falha de validação (`@Valid`) ou violação de regra de negócio |
-| `404 Not Found` | ID inexistente |
-| `409 Conflict` | Violação de integridade no banco |
-| `500 Internal Server Error` | Erro inesperado — detalhes só no log do servidor |
-
-Todas as respostas de erro usam o mesmo formato:
+Toda resposta de erro usa o mesmo formato:
 
 ```json
 {
-  "timestamp": "2026-10-09T11:01:07.4387056",
-  "status": 400,
-  "erro": "Bad Request",
+  "timestamp": "2026-10-09T11:01:07", "status": 400, "erro": "Bad Request",
   "mensagem": "Um ou mais campos da requisicao sao invalidos.",
   "caminho": "/api/trechos",
-  "campos": {
-    "nivelVegetacaoCm": ["O nivel de vegetacao nao pode ser negativo."]
-  }
+  "campos": { "nivelVegetacaoCm": ["O nivel de vegetacao nao pode ser negativo."] }
 }
 ```
 
 
 ## Exemplos cURL
 
-> O arquivo [`docs/evidencias-requisicoes.md`](docs/evidencias-requisicoes.md) traz **23 requisições reais**, com o comando enviado, o código HTTP e o corpo devolvido. Ele foi gerado pelo script [`docs/exemplos-curl.sh`](docs/exemplos-curl.sh), que pode ser reexecutado a qualquer momento:
->
-> ```bash
-> bash docs/exemplos-curl.sh > docs/evidencias-requisicoes.md
-> ```
-
-### Criar uma equipe
+> [`docs/evidencias-requisicoes.md`](docs/evidencias-requisicoes.md) traz **23 requisições reais** com comando, código HTTP e resposta. Foi gerado por [`docs/exemplos-curl.sh`](docs/exemplos-curl.sh), que pode ser reexecutado: `bash docs/exemplos-curl.sh > docs/evidencias-requisicoes.md`.
 
 ```bash
+# Criar equipe -> 201 Created + Location
 curl -i -X POST http://localhost:8080/api/equipes \
   -H 'Content-Type: application/json' \
   -d '{"nome":"Equipe Alpha","quantidadeIntegrantes":6}'
-```
 
-```
-HTTP/1.1 201 Created
-Location: http://localhost:8080/api/equipes/1
-
-{"id":1,"nome":"Equipe Alpha","quantidadeIntegrantes":6}
-```
-
-### Criar um trecho de cada tipo
-
-```bash
-# Trecho seco em estação seca, vegetação urgente
+# Criar trecho seco em estação seca -> 201
 curl -i -X POST http://localhost:8080/api/trechos \
   -H 'Content-Type: application/json' \
   -d '{"tipo":"SECO","quilometroInicial":30,"quilometroFinal":40,
        "nivelVegetacaoCm":88.0,"emEstacaoSeca":true}'
 
-# Trecho úmido com chuva 80% acima do normal
-curl -i -X POST http://localhost:8080/api/trechos \
-  -H 'Content-Type: application/json' \
-  -d '{"tipo":"UMIDO","quilometroInicial":10,"quilometroFinal":20,
-       "nivelVegetacaoCm":56.0,"indicePluviometrico":1.8}'
-
-# Trecho úmido com sensor IoT
-curl -i -X POST http://localhost:8080/api/trechos \
-  -H 'Content-Type: application/json' \
-  -d '{"tipo":"UMIDO_MONITORADO","quilometroInicial":0,"quilometroFinal":10,
-       "nivelVegetacaoCm":30.0,"indicePluviometrico":1.2,
-       "idSensor":"SENSOR-BR116-KM05"}'
-```
-
-A resposta mostra o polimorfismo da Sprint 2 em campos calculados na hora, que não existem em coluna nenhuma:
-
-```json
-{
-  "id": 1,
-  "tipo": "SECO",
-  "descricaoTipo": "Trecho Seco",
-  "quilometroInicial": 30,
-  "quilometroFinal": 40,
-  "nivelVegetacaoCm": 88.0,
-  "taxaCrescimentoDiarioCm": 0.72,
-  "critico": true,
-  "prioridade": "URGENTE",
-  "recomendacao": "Roçada Mecanizada — despachar equipe IMEDIATAMENTE",
-  "emEstacaoSeca": true
-}
-```
-
-### Filtrar com as derived queries
-
-```bash
+# Derived queries -> 200
 curl -i 'http://localhost:8080/api/trechos?tipo=SECO'
 curl -i 'http://localhost:8080/api/trechos?nivelMinimoCm=50'
-```
 
-### Simular o crescimento da vegetação
-
-```bash
-curl -i -X POST 'http://localhost:8080/api/trechos/3/simulacao?dias=10'
-```
-
-### Registrar uma intervenção
-
-```bash
+# Registrar intervenção -> 201
 curl -i -X POST http://localhost:8080/api/intervencoes \
   -H 'Content-Type: application/json' \
   -d '{"tipo":"ROCADA_MECANIZADA","trechoAlvoId":1,"equipeResponsavelId":1}'
-```
 
-```json
-{
-  "id": 1,
-  "tipo": "ROCADA_MECANIZADA",
-  "descricaoTipo": "Roçada Mecanizada",
-  "dataExecucao": "2026-10-09T11:01:06",
-  "trechoAlvo": { "id": 1, "nivelVegetacaoCm": 20.0, "...": "..." },
-  "equipeResponsavel": { "id": 1, "nome": "Equipe Alpha", "...": "..." },
-  "resultadoExecucao": "Roçada mecanizada concluída com trator e roçadeira lateral. Nível antes: 88,0 cm; nível após: 20,0 cm (residual de segurança)."
-}
-```
-
-O campo `resultadoExecucao` é o retorno de `executarServico()` — o texto que, nas Sprints 2 e 3, ia para o console. Repare que a roçada **derrubou o nível do trecho para 20 cm**: o efeito polimórfico foi gravado no banco pelo *dirty checking* do Hibernate, sem nenhum `UPDATE` escrito à mão.
-
-### Gerar e consultar o relatório de prioridade
-
-```bash
+# Relatório: gerar, listar e filtrar por período
 curl -i -X POST http://localhost:8080/api/relatorios
-
 curl -i http://localhost:8080/api/relatorios
-
 curl -i 'http://localhost:8080/api/relatorios/periodo?inicio=2026-01-01T00:00:00&fim=2026-12-31T23:59:59'
+
+# Erros -> 404 e 400
+curl -i http://localhost:8080/api/trechos/999999
+curl -i -X POST http://localhost:8080/api/trechos -H 'Content-Type: application/json' \
+  -d '{"tipo":"SECO","quilometroInicial":90,"quilometroFinal":100,"nivelVegetacaoCm":-5.0}'
 ```
+
+A resposta de um trecho traz campos **calculados na hora** pelo polimorfismo da Sprint 2, que não existem em coluna nenhuma — `taxaCrescimentoDiarioCm`, `critico`, `prioridade` e `recomendacao`:
 
 ```json
 {
-  "relatorio": {
-    "id": 1,
-    "dataGeracao": "2026-10-09T11:01:06",
-    "qtUrgente": 0, "qtCritico": 1, "qtAtencao": 2, "qtNormal": 1,
-    "totalTrechosAnalisados": 4,
-    "resumo": "4 trecho(s) analisado(s): 0 urgente(s), 1 critico(s), 2 em atencao, 1 normal(is)."
-  },
-  "itens": [
-    {
-      "trechoId": 4,
-      "descricaoTipo": "Trecho Úmido Monitorado (IoT)",
-      "nivelVegetacaoCm": 30.68,
-      "leituraSensorCm": 30.68,
-      "prioridade": "ATENCAO",
-      "intervencaoRecomendada": "Agendar roçada manual nas próximas 2 semanas"
-    }
-  ]
+  "id": 1, "tipo": "SECO", "descricaoTipo": "Trecho Seco", "nivelVegetacaoCm": 88.0,
+  "taxaCrescimentoDiarioCm": 0.72, "critico": true, "prioridade": "URGENTE",
+  "recomendacao": "Roçada Mecanizada — despachar equipe IMEDIATAMENTE"
 }
 ```
 
-### Erros
-
-```bash
-# 404 — trecho inexistente
-curl -i http://localhost:8080/api/trechos/999999
-
-# 400 — Bean Validation barra o nível negativo
-curl -i -X POST http://localhost:8080/api/trechos \
-  -H 'Content-Type: application/json' \
-  -d '{"tipo":"SECO","quilometroInicial":90,"quilometroFinal":100,"nivelVegetacaoCm":-5.0}'
-
-# 400 — regra de negócio do Service barra a quilometragem invertida
-curl -i -X POST http://localhost:8080/api/trechos \
-  -H 'Content-Type: application/json' \
-  -d '{"tipo":"SECO","quilometroInicial":100,"quilometroFinal":95,"nivelVegetacaoCm":10.0}'
-```
+Já o POST de intervenção devolve em `resultadoExecucao` o retorno polimórfico de `executarServico()` — o texto que nas Sprints 2 e 3 ia para o console: *"Roçada mecanizada concluída... Nível antes: 88,0 cm; nível após: 20,0 cm"*. A roçada **derrubou o nível do trecho para 20 cm** e isso foi gravado pelo *dirty checking* do Hibernate, sem nenhum `UPDATE` escrito à mão.
 
 
 ## Regras de Negócio
 
-Todas vivem na camada `@Service`. Nenhuma está no Controller.
+Todas vivem no `@Service`; nenhuma está no Controller. O motor de prioridade mantém os limiares da Sprint 2 — `≥ 80` `URGENTE`, `≥ 50` `CRITICO`, `≥ 25` `ATENCAO`, abaixo disso `NORMAL` — agora no enum `Prioridade`. Antes de classificar, o serviço consulta os sensores testando **contra a interface** `MonitoravelViaIoT`, não contra classe concreta.
 
-### Motor de prioridade (`RelatorioPrioridadeService`)
+O critério para decidir onde cada validação mora:
 
-Os limiares são os mesmos da Sprint 2, agora no enum `Prioridade`:
+- **Bean Validation no DTO** quando dá para decidir olhando um campo isolado: `nivelVegetacaoCm >= 0`, `quantidadeIntegrantes >= 1`, `indicePluviometrico >= 1.0`.
+- **Service** quando é preciso comparar dois campos (`kmFinal > kmInicial`), consultar o banco (nome de equipe duplicado, faixa de km ocupada, remoção de registro com histórico) ou saber o tipo do objeto (`idSensor` obrigatório só para `UMIDO_MONITORADO`, `tipoProduto` só para `PULVERIZACAO`).
 
-| Nível de vegetação | Prioridade | Intervenção recomendada |
-|---|---|---|
-| ≥ 80 cm | `URGENTE` | Roçada Mecanizada — despachar equipe imediatamente |
-| ≥ 50 cm | `CRITICO` | Pulverização herbicida + reavaliar em 7 dias |
-| ≥ 25 cm | `ATENCAO` | Agendar roçada manual nas próximas 2 semanas |
-| < 25 cm | `NORMAL` | Monitoramento de rotina |
-
-Antes de classificar, o serviço consulta os sensores de todos os trechos que implementam `MonitoravelViaIoT` — o teste é feito **contra a interface**, não contra uma classe concreta, de modo que um futuro `TrechoUrbanoMonitorado` entraria na rotina sem alterar uma linha do serviço.
-
-### Validações (`TrechoRodoviaService`)
-
-| Regra | Onde | Resposta |
-|---|---|---|
-| `nivelVegetacaoCm >= 0` | `@PositiveOrZero` no DTO | `400` |
-| `quilometroInicial >= 0` | `@PositiveOrZero` no DTO | `400` |
-| `quilometroFinal > quilometroInicial` | Service (compara 2 campos) | `400` |
-| `indicePluviometrico >= 1.0` | `@DecimalMin` no DTO | `400` |
-| `UMIDO_MONITORADO` exige `idSensor` | Service (depende do tipo) | `400` |
-| Não existir outro trecho na mesma faixa de km | Service (consulta o banco) | `400` |
-| Tipo do trecho não pode mudar em um `PUT` | Service | `400` |
-| Trecho com intervenções não pode ser removido | Service (consulta o banco) | `400` |
-
-### Validações (`EquipeManutencaoService`)
-
-| Regra | Onde | Resposta |
-|---|---|---|
-| Nome não vazio, até 100 caracteres | `@NotBlank` / `@Size` no DTO | `400` |
-| `quantidadeIntegrantes >= 1` | `@Positive` no DTO | `400` |
-| Nome de equipe não pode repetir | Service (consulta o banco) | `400` |
-| Equipe com trechos ou histórico não pode ser removida | Service (consulta o banco) | `400` |
-
-### Validações (`IntervencaoOperacionalService`)
-
-| Regra | Resposta |
-|---|---|
-| `PULVERIZACAO` exige `tipoProduto` | `400` |
-| `ROCADA_MECANIZADA` não aceita `tipoProduto` | `400` |
-| Não se despacha equipe para trecho classificado como `NORMAL` (< 25 cm) | `400` |
-| Trecho ou equipe inexistentes | `404` |
-
-A última é uma regra nossa: o objetivo do MOTIVA é priorizar roçada onde ela é necessária, então autorizar intervenção em vegetação baixa desperdiçaria equipe e contradiria o próprio relatório de prioridade.
-
-### A divisão entre DTO e Service
-
-O critério que usamos para decidir onde cada validação mora:
-
-- **Bean Validation no DTO** quando dá para decidir olhando **um campo isolado** (`nivelVegetacaoCm >= 0`);
-- **Service** quando é preciso **comparar dois campos** (`kmFinal > kmInicial`), **consultar o banco** (nome duplicado) ou **saber o tipo** do objeto (`idSensor` obrigatório só para monitorado).
-
-
-## Derived Queries
-
-Nenhum `@Query` e nenhuma linha de SQL foram escritos. Todas as consultas nascem do **nome do método**:
-
-```java
-// TrechoRodoviaRepository — as duas exigidas no item 3.4 do enunciado
-List<TrechoRodovia> findByNivelVegetacaoCmGreaterThanEqual(Double minimo);
-List<TrechoRodovia> findByTipo(String tipo);
-
-// Navegando pela associação @ManyToOne
-List<TrechoRodovia> findByEquipeResponsavelId(Long idEquipe);
-List<TrechoRodovia> findByEquipeResponsavelIsNull();
-
-// RelatorioPrioridadeRepository — sustenta o endpoint /periodo
-List<RelatorioPrioridade> findByDataGeracaoBetweenOrderByDataGeracaoDesc(
-        LocalDateTime inicio, LocalDateTime fim);
-
-// IntervencaoOperacionalRepository
-List<IntervencaoOperacional> findByTrechoAlvoIdOrderByDataExecucaoDesc(Long idTrecho);
-```
-
-`findByTipo` merece uma nota. `TIPO_TRECHO` é a coluna discriminadora da herança, e o JPA não a expõe como atributo. Para que a *derived query* funcionasse, declaramos um espelho somente-leitura dela em `TrechoRodovia`:
-
-```java
-@Column(name = "TIPO_TRECHO", insertable = false, updatable = false)
-private String tipo;
-```
-
-O `insertable = false, updatable = false` é essencial: a coluna já é escrita pelo mecanismo de herança, e sem isso o Hibernate acusaria dois mapeamentos disputando a mesma coluna.
-
-Para **ver** o SQL gerado, a aplicação sobe com `spring.jpa.show-sql=true`. Chamar `GET /api/trechos?tipo=SECO` imprime no console:
-
-```sql
-select t1_0.ID, t1_0.TIPO_TRECHO, t1_0.EM_ESTACAO_SECA, t1_0.ID_EQUIPE_RESPONSAVEL,
-       t1_0.ID_SENSOR, t1_0.INDICE_PLUVIOMETRICO, t1_0.NIVEL_VEGETACAO_CM,
-       t1_0.QUILOMETRO_FINAL, t1_0.QUILOMETRO_INICIAL
-  from TRECHO_RODOVIA t1_0
- where t1_0.TIPO_TRECHO = ?
-```
+Uma regra nossa: intervenção em trecho classificado como `NORMAL` é recusada com `400` — despachar equipe para vegetação baixa desperdiça recurso e contradiz o próprio relatório de prioridade.
 
 
 ## Perguntas de Reflexão
 
 ### 1. Por que o Repository é uma interface e não uma classe? Quem escreve a implementação e quando?
 
-Porque uma interface descreve **o que** queremos do banco, e isso é tudo o que precisamos escrever. O **como** — abrir conexão, montar o SQL, posicionar parâmetros, percorrer o `ResultSet`, mapear colunas para atributos, fechar tudo — é mecânico e idêntico para qualquer entidade. Era justamente esse código repetitivo que ocupava a maior parte dos nossos DAOs na Sprint 3: os quatro DAOs daquele projeto somavam 633 linhas e eram variações do mesmo esqueleto, com os nomes das tabelas trocados.
+Porque a interface descreve **o que** queremos do banco, e isso é tudo o que precisamos escrever. O **como** — abrir conexão, montar SQL, posicionar parâmetros, percorrer o `ResultSet`, fechar tudo — é mecânico e idêntico para qualquer entidade. Era esse código repetitivo que ocupava a maior parte dos nossos DAOs: os quatro da Sprint 3 somavam 633 linhas e eram variações do mesmo esqueleto.
 
-Quem escreve a implementação é o **Spring Data JPA**, e ele a escreve **em tempo de execução**, quando a aplicação sobe. Ao encontrar uma interface que estende `JpaRepository`, o Spring gera dinamicamente um objeto que a implementa (um *proxy*) e o registra como bean. Esse proxy delega as operações padrão para o `SimpleJpaRepository` e, para os métodos que nós declaramos, usa o nome do método para montar a consulta.
-
-Não existe `TrechoRodoviaRepositoryImpl` em lugar nenhum deste projeto — e, ainda assim, `trechoRepository.save(trecho)` funciona. É possível comprovar isso imprimindo a classe real do bean injetado: ela não é uma classe nossa, é algo como `jdk.proxy.$Proxy123`.
-
-A vantagem prática é que o código que escrevemos passou a ser só o que é específico do MOTIVA. O `EquipeManutencaoRepository` tem quatro assinaturas de método e nenhum corpo, no lugar das 136 linhas do `EquipeManutencaoDAO`.
+Quem escreve a implementação é o **Spring Data JPA**, **em tempo de execução**, quando a aplicação sobe. Ao encontrar uma interface que estende `JpaRepository`, ele gera dinamicamente um *proxy* que a implementa e o registra como bean, delegando as operações padrão ao `SimpleJpaRepository`. Não existe `TrechoRodoviaRepositoryImpl` em lugar nenhum deste projeto — e ainda assim `trechoRepository.save(trecho)` funciona. Imprimindo a classe real do bean injetado aparece algo como `jdk.proxy.$Proxy123`, e não uma classe nossa.
 
 ### 2. O pattern DAO da Sprint 3 "morreu" na migração ou só mudou de forma?
 
-Só mudou de forma — e, na verdade, nem isso: o padrão continua exatamente onde estava, só que agora quem o implementa não somos nós.
+Só mudou de forma. O DAO é um padrão de **projeto**, não uma tecnologia: ele diz para isolar o acesso a dados atrás de uma interface, de modo que o resto do sistema peça objetos de domínio sem saber de onde vêm. Isso continua intacto — o `RelatorioPrioridadeService` pede `trechoRepository.findAll()` e recebe trechos prontos, exatamente como o `GeradorRelatorio` pedia `trechoDAO.listarTodas()`.
 
-O DAO é um padrão de **projeto**, não uma tecnologia. Ele diz: isole o acesso a dados atrás de uma interface, para que o resto do sistema peça objetos de domínio sem saber se eles vêm de Oracle, de um arquivo ou de memória. Essa ideia continua intacta na Sprint 4. O `RelatorioPrioridadeService` pede `trechoRepository.findAll()` e recebe trechos prontos, sem a menor noção de onde eles estavam — exatamente como o `GeradorRelatorio` da Sprint 3 pedia `trechoDAO.listarTodas()`.
-
-O que morreu foi a **implementação manual** do padrão. Comparando papel a papel:
+O que morreu foi a implementação manual:
 
 | Papel do DAO | Sprint 3 | Sprint 4 |
 |---|---|---|
-| Contrato de acesso a dados | métodos públicos do `TrechoRodoviaDAO` | interface `TrechoRodoviaRepository` |
-| Tradução objeto ↔ linha | `mapearLinha()` e `paraDominio()` escritos por nós | anotações `@Entity` / `@Column` lidas pelo Hibernate |
-| Reconstrução da subclasse certa | `switch` sobre `TIPO_TRECHO` dentro do DAO | `@DiscriminatorValue` resolvido pelo Hibernate |
-| Gerenciamento de conexão | `ConexaoBD` (Singleton) | pool do Spring, configurado em `application.properties` |
+| Contrato de acesso a dados | métodos do `TrechoRodoviaDAO` | interface `TrechoRodoviaRepository` |
+| Tradução objeto ↔ linha | `mapearLinha()` escrito por nós | anotações `@Entity` / `@Column` |
+| Reconstruir a subclasse certa | `switch` sobre `TIPO_TRECHO` | `@DiscriminatorValue` |
+| Gerenciar conexão | `ConexaoBD` (Singleton) | pool do Spring |
 
-**O Repository do Spring Data é um DAO gerado pelo framework em tempo de execução.** Trocamos trabalho manual e repetitivo por configuração declarativa, sem abrir mão da separação de responsabilidades que o padrão garante.
+O Repository do Spring Data é um DAO gerado pelo framework em tempo de execução.
 
-### 3. Por que a validação de `nivelVegetacao >= 0` (Sprint 1) deve ficar no Service e não no Controller?
+### 3. Por que a validação de `nivelVegetacao >= 0` deve ficar no Service e não no Controller?
 
-Porque ela é uma regra do **MOTIVA**, e não um detalhe do **HTTP**.
+Porque é uma regra do **MOTIVA**, não um detalhe do **HTTP**. O Controller é só uma das portas de entrada possíveis — o próprio histórico deste projeto mostra isso, já que nas Sprints 1 a 3 a porta era um menu de console. Se amanhã o sistema ganhar um importador de CSV ou um job que lê sensores, todos vão chamar o Service e herdar a validação. No Controller, ela valeria só para quem entrasse pelo HTTP, e cada nova porta teria que reimplementá-la — validação duplicada é validação que uma hora diverge.
 
-O Controller é só uma das portas de entrada possíveis do sistema. Hoje é a única, mas o próprio histórico deste projeto mostra o contrário: nas Sprints 1 a 3 a porta era um menu de console. Se amanhã o sistema ganhar um importador de CSV da concessionária, um job agendado que lê sensores ou uma fila de mensagens, todos eles vão chamar o `TrechoRodoviaService` — e todos vão herdar a validação automaticamente. Se ela estivesse no Controller, valeria apenas para quem entrasse pela porta do HTTP, e cada nova porta teria que reimplementá-la. Validação duplicada é validação que uma hora vai divergir.
+Somam-se duas razões: dá para testar a regra chamando o Service direto, sem subir servidor; e o Service fala a língua do negócio, lançando `RegraDeNegocioException`, enquanto o `@RestControllerAdvice` traduz para `400`. Assim a regra não conhece códigos HTTP e o HTTP não conhece a regra.
 
-Há outras duas razões concretas:
-
-- **Testabilidade.** Dá para testar a regra chamando o Service diretamente, sem subir servidor nem simular requisição.
-- **Vocabulário.** O Service fala a língua do negócio — ele lança `RegraDeNegocioException("O quilometro final deve ser maior que o inicial")`. Quem traduz isso para `400 Bad Request` é o `@RestControllerAdvice`. Assim a regra não precisa conhecer códigos HTTP, e o HTTP não precisa conhecer a regra.
-
-Uma observação sobre como aplicamos isso na prática: o `nivelVegetacao >= 0` em si está declarado como `@PositiveOrZero` no DTO, porque é uma checagem de **formato** sobre um campo isolado, e o Bean Validation já devolve a mensagem por campo de graça. O que exige conhecimento do domínio ficou no Service: `quilometroFinal > quilometroInicial` (compara dois campos), `idSensor` obrigatório só para trechos monitorados (depende do tipo) e a recusa de remover um trecho com histórico (consulta o banco). O princípio é o mesmo nos dois casos — **nada disso está no Controller**.
+Na prática aplicamos isso em dois níveis: o `nivelVegetacao >= 0` está como `@PositiveOrZero` no DTO, por ser checagem de formato sobre um campo isolado; o que exige conhecer o domínio ficou no Service. Em nenhum dos casos a validação está no Controller.
 
 ### 4. No JDBC puro vocês escreviam SQL. Onde está o SQL do `findByTipo()`? Quem o gerou?
 
-O SQL **não existe** enquanto a aplicação está parada. Ele não está no nosso código, não está em arquivo de configuração e não está em nenhum `@Query`. Ele passa a existir quando a aplicação sobe, e quem o escreve é o **Spring Data JPA junto com o Hibernate**.
+O SQL **não existe** enquanto a aplicação está parada — não está no código, em arquivo de configuração nem em `@Query`. Ele nasce quando a aplicação sobe, escrito pelo Spring Data JPA junto com o Hibernate, em três etapas:
 
-O processo tem três etapas:
+1. O Spring Data encontra `findByTipo`, remove o prefixo `findBy` e procura um atributo `tipo` em `TrechoRodovia`. Como não há sufixo de operador (`GreaterThanEqual`, `IsNull`…), assume igualdade.
+2. Monta uma consulta **JPQL**, que fala de objetos: `select t from TrechoRodovia t where t.tipo = :tipo`. Ainda não há SQL.
+3. Na primeira execução, o Hibernate traduz a JPQL usando o dialeto (`OracleDialect`) e o mapeamento das anotações, descobrindo que a tabela é `TRECHO_RODOVIA` e a coluna é `TIPO_TRECHO`.
 
-1. **Na subida da aplicação**, o Spring Data encontra `findByTipo` em `TrechoRodoviaRepository`. Remove o prefixo `findBy` e quebra o resto em partes: `Tipo`. Procura então um atributo chamado `tipo` na entidade `TrechoRodovia` — que é o nosso espelho da coluna discriminadora. Como não há sufixo de operador (`GreaterThanEqual`, `Containing`, `IsNull`…), assume igualdade.
+Com `spring.jpa.show-sql=true` dá para ver o resultado no console:
 
-2. Com isso ele monta uma consulta **JPQL**, que fala de objetos e não de tabelas: algo equivalente a `select t from TrechoRodovia t where t.tipo = :tipo`. Nesse ponto ainda não há SQL.
+```sql
+select t1_0.ID, t1_0.TIPO_TRECHO, t1_0.NIVEL_VEGETACAO_CM, ...
+  from TRECHO_RODOVIA t1_0 where t1_0.TIPO_TRECHO = ?
+```
 
-3. **Na primeira execução**, o Hibernate traduz essa JPQL para o SQL do banco configurado, usando o dialeto (`OracleDialect`) e o mapeamento das anotações para saber que `TrechoRodovia` é a tabela `TRECHO_RODOVIA` e que `tipo` é a coluna `TIPO_TRECHO`.
+Detalhe de implementação: `TIPO_TRECHO` é a coluna discriminadora da herança e o JPA não a expõe como atributo. Para a *derived query* funcionar, declaramos um espelho somente-leitura dela — `@Column(name = "TIPO_TRECHO", insertable = false, updatable = false)`. Sem o `insertable/updatable = false` o Hibernate acusaria dois mapeamentos disputando a mesma coluna.
 
-Dá para ver o resultado: a aplicação sobe com `spring.jpa.show-sql=true`, e o console imprime o SQL de cada consulta — o `select ... where t1_0.TIPO_TRECHO = ?` mostrado na seção *Derived Queries*.
-
-Vale notar o que ganhamos nessa troca. O `?` daquele SQL é um parâmetro vinculado, não concatenação de texto — ou seja, consultas geradas assim são imunes a SQL injection por construção, enquanto no JDBC puro isso dependia da nossa disciplina de sempre usar `PreparedStatement`. E, porque a tradução para SQL acontece pelo dialeto, a mesma `findByTipo` roda contra o Oracle da FIAP em produção e contra o H2 em memória na suíte de testes, sem uma linha de diferença no código.
+Vale notar o ganho: aquele `?` é parâmetro vinculado, não concatenação de texto, então consultas geradas assim são imunes a SQL injection por construção. E, como a tradução passa pelo dialeto, a mesma `findByTipo` roda contra o Oracle e contra o H2 dos testes sem uma linha de diferença.
 
 
 ## Testes
 
-Nas sprints anteriores os testes eram chamadas manuais dentro do `main.Main`. Agora são automatizados:
+Nas sprints anteriores os testes eram chamadas manuais dentro do `main.Main`. Agora são automatizados com `@SpringBootTest` + `MockMvc`:
 
 ```bash
-./mvnw test
+./mvnw test     # Tests run: 22, Failures: 0, Errors: 0
 ```
 
-```
-Tests run: 22, Failures: 0, Errors: 0, Skipped: 0
-BUILD SUCCESS
-```
+A suíte sobe o contexto Spring inteiro contra um H2 em memória, o que de quebra **valida o mapeamento JPA**: se um `@Column` apontasse para coluna inexistente ou um `@SequenceGenerator` estivesse mal declarado, o contexto nem subiria. Cobre o CRUD completo de equipe e trecho (`201 → 200 → 200 → 204 → 404`), o cabeçalho `Location`, o polimorfismo da taxa de crescimento das três subclasses (1,2 / 0,72 / 6,3 cm/dia), as duas *derived queries*, o efeito polimórfico de `executarServico()`, as regras que devolvem `400` e os três endpoints de relatório. Cada teste é `@Transactional`, então nada do que grava sobrevive.
 
-A classe `MotivaApiIntegrationTest` usa `@SpringBootTest` + `MockMvc` e sobe o contexto Spring inteiro contra um H2 em memória. Além de testar as rotas, isso **valida o mapeamento JPA**: se um `@Column` apontasse para uma coluna inexistente ou um `@SequenceGenerator` estivesse mal declarado, o contexto nem subiria.
 
-- Teste 1 a 4 — CRUD completo de equipe, conferindo `201 → 200 → 200 → 204 → 404`
-- Teste 5 — Nome vazio e zero integrantes são rejeitados com `400` e mapa de campos
-- Teste 6 a 8 — CRUD completo de trecho, incluindo o cabeçalho `Location` nas respostas `201`
-- Teste 9 — Polimorfismo da taxa de crescimento das três subclasses (1,2 / 0,72 / 6,3 cm/dia)
-- Teste 10 — Campos exclusivos de subtipo entram e somem do JSON conforme o tipo
-- Teste 11 e 12 — As duas *derived queries* do item 3.4
-- Teste 13 — Simulação de crescimento aplica a taxa diária da subclasse
-- Teste 14 — ID inexistente devolve `404` em `GET`, `PUT` e `DELETE`
-- Teste 15 — Roçada mecanizada derruba o nível do trecho para 20 cm e persiste
-- Teste 16 — Pulverização registra o produto e **não** altera o nível
-- Teste 17 a 19 — Regras de negócio do Service devolvendo `400`
-- Teste 20 — Relatório classifica 4 trechos e grava o snapshot no histórico
-- Teste 21 e 22 — Consulta por período e validação da janela de datas
+## Boas Práticas de Git
 
-Cada teste é `@Transactional`, então tudo o que grava é desfeito ao final — os testes não interferem uns nos outros nem deixam lixo no banco.
+- **Commits incrementais e temáticos**, um por etapa da migração, seguindo *Conventional Commits* (`feat:`, `docs:`, `test:`, `chore:`).
+- **`.gitignore` adequado:** `target/`, arquivos de IDE, arquivos de sistema e logs.
+- **Nenhuma credencial versionada:** usuário e senha do Oracle vêm do ambiente; o `.gitignore` também bloqueia `.env` e `application-local.properties`.
+- **Driver via Maven:** o `ojdbc17` virou dependência do `pom.xml`, no lugar do `lib/ojdbc17.jar` que a Sprint 3 versionava.
+- **`.gitattributes`** preserva LF no `mvnw` e nos scripts `.sh`, que senão quebrariam em Linux e macOS depois de um clone no Windows.
 
 
 ## Decisões de Clean Code
 
-- **Injeção por construtor com campos `final`:** na Sprint 3 cada classe criava seus DAOs com `new`; aqui o Spring entrega as dependências prontas, e campos `final` tornam impossível existir um Service pela metade.
-- **DTOs separando entidade e contrato:** o cliente não escolhe o próprio id, e renomear uma coluna deixa de quebrar quem consome a API.
-- **Exceções de domínio, não códigos HTTP, no Service:** `RecursoNaoEncontradoException` e `RegraDeNegocioException` deixam o Service falando a língua do negócio; o `@RestControllerAdvice` faz a tradução para `404` e `400`.
-- **Um único formato de erro:** todas as falhas devolvem o mesmo JSON (`timestamp`, `status`, `erro`, `mensagem`, `caminho`, `campos`), permitindo ao cliente tratá-las genericamente.
-- **Stack trace só no log:** erros inesperados devolvem `500` com mensagem genérica — expor detalhes internos na resposta HTTP é falha de segurança.
-- **`BooleanSNConverter` centraliza a tradução `boolean` ↔ `CHAR(1)`:** o que estava espalhado por cada `setString`/`getString` do DAO agora existe em um lugar só.
-- **`allocationSize = 1` explícito:** o padrão do JPA é 50, o que faria o Hibernate assumir uma sequence com `INCREMENT BY 50` e gerar IDs com buracos em relação às linhas da Sprint 3.
-- **`@Enumerated(STRING)` em vez de ordinal:** grava `'HERBICIDA_SELETIVO'` como texto, mantendo compatibilidade com os dados da Sprint 3 e evitando que reordenar o enum corrompa o histórico.
-- **`FetchType.LAZY` nas associações:** a equipe só é buscada se alguém chamar `getEquipeResponsavel()`, evitando consultas inúteis ao listar muitos trechos.
-- **`open-in-view=false`:** mantém a sessão do JPA restrita à camada de serviço, impedindo consultas preguiçosas de dispararem durante a serialização do JSON.
-- **`ddl-auto=none` em produção:** o Hibernate não cria nem altera tabelas — o schema é o que modelamos na Sprint 3 e migramos pelos scripts de `sql/`.
-- **Credenciais fora do repositório:** `ORACLE_USER` e `ORACLE_PASSWORD` vêm do ambiente, e o `.gitignore` bloqueia `.env` e `application-local.properties`.
-- **Driver via Maven:** o `ojdbc17` é dependência declarada no `pom.xml`; o `lib/ojdbc17.jar` da Sprint 3 deixou de ser necessário para o build.
-- **Maven Wrapper versionado:** o projeto roda em qualquer máquina com Java 17, mesmo sem Maven instalado.
-- **`.gitattributes` preservando LF:** sem ele, o `mvnw` e os scripts `.sh` quebrariam em Linux e macOS após um clone no Windows.
+- **Injeção por construtor com campos `final`:** na Sprint 3 cada classe criava seus DAOs com `new`; aqui o Spring entrega as dependências prontas, e o `final` torna impossível existir um Service pela metade.
+- **DTOs separando entidade e contrato:** o cliente não escolhe o próprio id, e renomear uma coluna não quebra quem consome a API.
+- **Exceções de domínio no Service, não códigos HTTP:** o `@RestControllerAdvice` faz a tradução, e todas as falhas devolvem o mesmo formato JSON — stack trace vai só para o log, nunca para a resposta.
+- **`BooleanSNConverter` centraliza a tradução `boolean` ↔ `CHAR(1)`:** o que estava espalhado por cada `setString`/`getString` do DAO agora existe num lugar só.
+- **`allocationSize = 1` e `@Enumerated(STRING)`:** o padrão do JPA (50) geraria IDs com buracos em relação às linhas da Sprint 3, e gravar o enum como texto evita que reordená-lo um dia corrompa o histórico.
+- **`FetchType.LAZY`, `open-in-view=false` e `ddl-auto=none`:** só busca o que for pedido, não deixa a sessão do JPA vazar para a serialização do JSON e não permite que o Hibernate altere o schema da Sprint 3.
