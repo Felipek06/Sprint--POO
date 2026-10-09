@@ -1,4 +1,34 @@
-﻿# Sprint-1---POO
+﻿# Challenge MOTIVA — FIAP
+
+**Sistema de Monitoramento e Priorização de Roçada de Vegetação em Rodovias**
+
+Repositório único do Challenge: as quatro sprints estão documentadas abaixo, em ordem.
+Entrega atual: **[Sprint 4 — Spring Boot + JPA + API REST](#sprint-4-spring-boot--jpa--api-rest)**.
+
+## Integrantes
+
+| Nome | RM |
+|---|---|
+| Lucas Ferrari Lima | 563119 |
+| Carlos Eduardo Pires Cervelli | 563462 |
+| Mateus Patrício Pereira | 564695 |
+| Felipe Krzyzanovski dos Santos Menezes | 564878 |
+| Leonardo Lopes Oliveira | 565437 |
+| Guilherme Carreri Giampietro | 565676 |
+| Arthur de Souza Matos Dias | 566068 |
+
+## Sprints
+
+| Sprint | Tema | Seção |
+|---|---|---|
+| 1 | Domínio base, encapsulamento e protótipo de console | [ver](#sprint-1---poo) |
+| 2 | Motor de regras: classes abstratas, interfaces e polimorfismo | [ver](#sprint-2-o-motor-de-regras) |
+| 3 | Persistência: JDBC puro, pattern DAO e CRUD no Oracle | [ver](#sprint-3-a-camada-de-persistência) |
+| 4 | Framework: Spring Boot + JPA + API REST | [ver](#sprint-4-spring-boot--jpa--api-rest) |
+
+---
+
+# Sprint-1---POO
 
 Sistema de Monitoramento e Priorização de Roçada de Vegetação em Rodovias
 
