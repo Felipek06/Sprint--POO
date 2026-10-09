@@ -12,6 +12,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -169,6 +170,26 @@ public class ManipuladorGlobalDeErros {
                         HttpStatus.CONFLICT.value(),
                         HttpStatus.CONFLICT.getReasonPhrase(),
                         "A operacao viola uma restricao de integridade do banco de dados.",
+                        requisicao.getRequestURI()));
+    }
+
+    /**
+     * URL que não casa com nenhuma rota -> 404 Not Found.
+     *
+     * Sem este handler a exceção cairia na rede de segurança abaixo e o
+     * cliente receberia 500 ("erro interno") ao digitar uma rota errada —
+     * o que é enganoso: o servidor está íntegro, o endereço é que não
+     * existe.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErroResposta> tratarRotaInexistente(NoResourceFoundException ex,
+                                                               HttpServletRequest requisicao) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ErroResposta.de(
+                        HttpStatus.NOT_FOUND.value(),
+                        HttpStatus.NOT_FOUND.getReasonPhrase(),
+                        "Nao existe endpoint para " + requisicao.getMethod() + " " + requisicao.getRequestURI() + ".",
                         requisicao.getRequestURI()));
     }
 

@@ -3,6 +3,8 @@ package br.com.motiva.model;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Trecho de rodovia em região úmida (margens de rios, baixadas, matas
@@ -23,8 +25,15 @@ public class TrechoUmido extends TrechoRodovia {
 
     private static final double TAXA_BASE_CM_DIA = 3.5;
 
-    /** Multiplicador que representa chuvas acima do normal (1.0 = normal). */
-    @Column(name = "INDICE_PLUVIOMETRICO")
+    /**
+     * Multiplicador que representa chuvas acima do normal (1.0 = normal).
+     *
+     * Mesmo motivo do nivelVegetacaoCm em TrechoRodovia: a coluna da
+     * Sprint 3 e NUMBER(4,2), e nao o BINARY_DOUBLE que o Hibernate
+     * escolheria sozinho para um Double.
+     */
+    @JdbcTypeCode(SqlTypes.NUMERIC)
+    @Column(name = "INDICE_PLUVIOMETRICO", precision = 4, scale = 2)
     private Double indicePluviometrico;
 
     protected TrechoUmido() {

@@ -5,6 +5,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Trecho de rodovia em região seca (cerrado, caatinga, zonas áridas).
@@ -29,7 +31,8 @@ public class TrechoSeco extends TrechoRodovia {
      * sentidos, de modo que o resto do código Java só enxerga um boolean.
      */
     @Convert(converter = BooleanSNConverter.class)
-    @Column(name = "EM_ESTACAO_SECA", length = 1)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "EM_ESTACAO_SECA", length = 1, columnDefinition = "CHAR(1)")
     private Boolean emEstacaoSeca;
 
     protected TrechoSeco() {

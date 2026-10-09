@@ -14,6 +14,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Segmento (trecho) de rodovia com controle de vegetação.
@@ -87,7 +89,17 @@ public abstract class TrechoRodovia {
     @Column(name = "QUILOMETRO_FINAL", nullable = false)
     private Integer quilometroFinal;
 
-    @Column(name = "NIVEL_VEGETACAO_CM", nullable = false)
+    /**
+     * Nível de vegetação em centímetros.
+     *
+     * O @JdbcTypeCode(NUMERIC) é necessário: por padrão o Hibernate mapeia
+     * um Double do Java para BINARY_DOUBLE no Oracle, mas a coluna que
+     * modelamos na Sprint 3 é NUMBER(7,2). Sem esta anotação o mapeamento
+     * fica divergente do banco — algo que só aparece quando se sobe a
+     * aplicação com spring.jpa.hibernate.ddl-auto=validate.
+     */
+    @JdbcTypeCode(SqlTypes.NUMERIC)
+    @Column(name = "NIVEL_VEGETACAO_CM", nullable = false, precision = 7, scale = 2)
     private Double nivelVegetacaoCm;
 
     /**

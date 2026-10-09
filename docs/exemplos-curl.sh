@@ -23,6 +23,19 @@ BASE="${BASE:-http://localhost:8080}"
 #   BANCO="Oracle FIAP" bash docs/exemplos-curl.sh > docs/evidencias-requisicoes.md
 BANCO="${BANCO:-nao informado}"
 
+# Faixa de quilometragem dos trechos de exemplo. A API recusa com 400 um
+# trecho cuja faixa ja exista, entao o script trabalha a partir de um KM
+# alto para nao colidir com os dados que ja estao no banco. Se mesmo assim
+# houver conflito (por exemplo, ao rodar o script duas vezes), repita com
+# outra base:  KM_BASE=2000 bash docs/exemplos-curl.sh
+KM_BASE="${KM_BASE:-1000}"
+
+# Sufixo dos nomes de equipe. A API recusa com 400 uma equipe cujo nome ja
+# exista, e o banco da Sprint 3 ja tem "Equipe Alpha" e "Equipe Beta". O
+# sufixo mantem os nomes deste roteiro unicos sem apagar nada do que ja
+# esta gravado.
+ROTULO="${ROTULO:-demo $KM_BASE}"
+
 # A API responde em UTF-8. No Windows o Python usa a codificacao da regiao
 # (cp1252) para ler o stdin, o que embaralharia os acentos ao formatar o
 # JSON; esta variavel forca UTF-8 na entrada e na saida.
@@ -77,14 +90,32 @@ chamar() {
 
 # Extrai o campo "id" do corpo de uma resposta
 extrair_id() {
-  local metodo="$1" rota="$2" corpo="${3:-}"
+  local metodo="$1" rota="$2" corpo="${3:-}" resposta id
+
   if [ -n "$corpo" ]; then
-    curl -s -X "$metodo" "${BASE}${rota}" -H 'Content-Type: application/json' -d "$corpo" \
-      | python -c "import sys,json; print(json.load(sys.stdin)['id'])"
+    resposta=$(curl -s -X "$metodo" "${BASE}${rota}" -H 'Content-Type: application/json' -d "$corpo")
   else
-    curl -s -X "$metodo" "${BASE}${rota}" \
-      | python -c "import sys,json; print(json.load(sys.stdin)['id'])"
+    resposta=$(curl -s -X "$metodo" "${BASE}${rota}")
   fi
+
+  id=$(echo "$resposta" | python -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+
+  # Sem id nao da para seguir: as requisicoes seguintes montariam um JSON
+  # quebrado e o arquivo de evidencias sairia cheio de erro sem explicacao.
+  # Obs.: quem chama precisa usar "|| exit 1", porque um exit dentro de uma
+  # substituicao de comando $( ) encerra apenas o subshell.
+  if [ -z "$id" ]; then
+    {
+      echo "ERRO: ${metodo} ${rota} nao devolveu um id."
+      echo "Resposta do servidor: ${resposta}"
+      echo "Dica: em caso de conflito de nome de equipe ou de faixa de km,"
+      echo "      rode de novo com outra base e outro rotulo, por exemplo:"
+      echo "      KM_BASE=2000 ROTULO='Sprint 4 v2' bash docs/exemplos-curl.sh"
+    } >&2
+    exit 1
+  fi
+
+  echo "$id"
 }
 
 echo "# Evidências de requisições — API MOTIVA (Sprint 4)"
@@ -99,9 +130,9 @@ echo "---"
 echo ""
 echo "## 1. CRUD de equipes"
 
-ID_EQUIPE=$(extrair_id POST /api/equipes '{"nome":"Equipe Alpha","quantidadeIntegrantes":6}')
+ID_EQUIPE=$(extrair_id POST /api/equipes '{"nome":"Equipe Alpha ('"${ROTULO}"')","quantidadeIntegrantes":6}') || exit 1
 
-chamar POST /api/equipes '{"nome":"Equipe Beta","quantidadeIntegrantes":4}'
+chamar POST /api/equipes '{"nome":"Equipe Beta ('"${ROTULO}"')","quantidadeIntegrantes":4}'
 chamar GET /api/equipes
 chamar GET "/api/equipes/${ID_EQUIPE}"
 
@@ -112,16 +143,16 @@ echo ""
 echo "## 2. CRUD de trechos e herança"
 
 ID_URGENTE=$(extrair_id POST /api/trechos \
-  '{"tipo":"SECO","quilometroInicial":30,"quilometroFinal":40,"nivelVegetacaoCm":88.0,"emEstacaoSeca":true}')
+  '{"tipo":"SECO","quilometroInicial":'$((KM_BASE+30))',"quilometroFinal":'$((KM_BASE+40))',"nivelVegetacaoCm":88.0,"emEstacaoSeca":true}') || exit 1
 
 ID_CRITICO=$(extrair_id POST /api/trechos \
-  '{"tipo":"UMIDO","quilometroInicial":10,"quilometroFinal":20,"nivelVegetacaoCm":56.0,"indicePluviometrico":1.8}')
+  '{"tipo":"UMIDO","quilometroInicial":'$((KM_BASE+10))',"quilometroFinal":'$((KM_BASE+20))',"nivelVegetacaoCm":56.0,"indicePluviometrico":1.8}') || exit 1
 
 ID_NORMAL=$(extrair_id POST /api/trechos \
-  '{"tipo":"SECO","quilometroInicial":40,"quilometroFinal":50,"nivelVegetacaoCm":18.0,"emEstacaoSeca":false}')
+  '{"tipo":"SECO","quilometroInicial":'$((KM_BASE+40))',"quilometroFinal":'$((KM_BASE+50))',"nivelVegetacaoCm":18.0,"emEstacaoSeca":false}') || exit 1
 
 chamar POST /api/trechos \
-  '{"tipo":"UMIDO_MONITORADO","quilometroInicial":0,"quilometroFinal":10,"nivelVegetacaoCm":30.0,"indicePluviometrico":1.2,"idSensor":"SENSOR-BR116-KM05"}'
+  '{"tipo":"UMIDO_MONITORADO","quilometroInicial":'$((KM_BASE+0))',"quilometroFinal":'$((KM_BASE+10))',"nivelVegetacaoCm":30.0,"indicePluviometrico":1.2,"idSensor":"SENSOR-BR116-KM05"}'
 
 chamar GET "/api/trechos/${ID_URGENTE}"
 chamar GET /api/trechos
@@ -146,7 +177,7 @@ echo ""
 echo "## 4. Atualização e motor de crescimento (Sprint 2)"
 
 chamar PUT "/api/trechos/${ID_CRITICO}" \
-  '{"tipo":"UMIDO","quilometroInicial":10,"quilometroFinal":20,"nivelVegetacaoCm":60.0,"indicePluviometrico":1.8,"equipeResponsavelId":'"${ID_EQUIPE}"'}'
+  '{"tipo":"UMIDO","quilometroInicial":'$((KM_BASE+10))',"quilometroFinal":'$((KM_BASE+20))',"nivelVegetacaoCm":60.0,"indicePluviometrico":1.8,"equipeResponsavelId":'"${ID_EQUIPE}"'}'
 
 echo ""
 echo "O trecho seco cresce 1,2 cm/dia; em estação seca, 0,72 cm/dia. Dez dias"
@@ -196,10 +227,10 @@ echo "## 7. Códigos de erro"
 chamar GET /api/trechos/999999
 
 chamar POST /api/trechos \
-  '{"tipo":"SECO","quilometroInicial":90,"quilometroFinal":100,"nivelVegetacaoCm":-5.0}'
+  '{"tipo":"SECO","quilometroInicial":'$((KM_BASE+90))',"quilometroFinal":'$((KM_BASE+100))',"nivelVegetacaoCm":-5.0}'
 
 chamar POST /api/trechos \
-  '{"tipo":"SECO","quilometroInicial":100,"quilometroFinal":95,"nivelVegetacaoCm":10.0}'
+  '{"tipo":"SECO","quilometroInicial":'$((KM_BASE+100))',"quilometroFinal":'$((KM_BASE+95))',"nivelVegetacaoCm":10.0}'
 
 chamar POST /api/intervencoes \
   '{"tipo":"PULVERIZACAO","trechoAlvoId":'"${ID_CRITICO}"',"equipeResponsavelId":'"${ID_EQUIPE}"'}'
@@ -211,7 +242,7 @@ echo ""
 echo "## 8. Remoção"
 
 ID_DESCARTAVEL=$(extrair_id POST /api/trechos \
-  '{"tipo":"SECO","quilometroInicial":700,"quilometroFinal":710,"nivelVegetacaoCm":12.0}')
+  '{"tipo":"SECO","quilometroInicial":'$((KM_BASE+700))',"quilometroFinal":'$((KM_BASE+710))',"nivelVegetacaoCm":12.0}') || exit 1
 
 chamar DELETE "/api/trechos/${ID_DESCARTAVEL}"
 chamar GET "/api/trechos/${ID_DESCARTAVEL}"

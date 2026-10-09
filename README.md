@@ -409,13 +409,25 @@ O script é idempotente e **preserva os dados**: troca a identity por uma sequen
 **2. Definir as credenciais.** Nenhuma senha fica no código nem no `application.properties` — ele lê `ORACLE_USER` e `ORACLE_PASSWORD` do ambiente, mantendo a prática que a `ConexaoBD` já adotava:
 
 ```powershell
-$env:ORACLE_USER = "rm564878"       # PowerShell
+$env:ORACLE_USER = "seu_rm"         # PowerShell
 $env:ORACLE_PASSWORD = "sua_senha"
 ```
 
 ```bash
-export ORACLE_USER=rm564878         # Linux / macOS
+export ORACLE_USER=seu_rm           # Linux / macOS
 export ORACLE_PASSWORD=sua_senha
+```
+
+A URL padrão é a do Oracle da FIAP, mas a variável `ORACLE_URL` aponta o projeto para qualquer instância sem tocar no código:
+
+```bash
+# Oracle da FIAP por SERVICE_NAME em vez de SID
+export ORACLE_URL='jdbc:oracle:thin:@//oracle.fiap.com.br:1521/ORCL'
+
+# Oracle XE local — foi contra esta instância que as evidências desta
+# entrega foram geradas, porque é onde vivem as tabelas da Sprint 3.
+# No XE 21c o serviço é o PDB XEPDB1, e não XE.
+export ORACLE_URL='jdbc:oracle:thin:@//localhost:1521/XEPDB1'
 ```
 
 **3. Subir a aplicação** em <http://localhost:8080>:
@@ -463,7 +475,7 @@ Toda resposta de erro usa o mesmo formato:
 
 ## Exemplos cURL
 
-> [`docs/evidencias-requisicoes.md`](docs/evidencias-requisicoes.md) traz **23 requisições reais** com comando, código HTTP e resposta. Foi gerado por [`docs/exemplos-curl.sh`](docs/exemplos-curl.sh), que pode ser reexecutado: `bash docs/exemplos-curl.sh > docs/evidencias-requisicoes.md`.
+> [`docs/evidencias-requisicoes.md`](docs/evidencias-requisicoes.md) traz **23 requisições reais contra o Oracle**, com comando, código HTTP e resposta — 12× `200`, 5× `201`, 1× `204`, 3× `400` e 2× `404`. Foi gerado por [`docs/exemplos-curl.sh`](docs/exemplos-curl.sh), que pode ser reexecutado: `bash docs/exemplos-curl.sh > docs/evidencias-requisicoes.md`.
 
 ```bash
 # Criar equipe -> 201 Created + Location
@@ -580,6 +592,8 @@ Nas sprints anteriores os testes eram chamadas manuais dentro do `main.Main`. Ag
 ```bash
 ./mvnw test     # Tests run: 22, Failures: 0, Errors: 0
 ```
+
+Além disso, a aplicação foi subida uma vez contra o Oracle com `spring.jpa.hibernate.ddl-auto=validate`, e o Hibernate conferiu cada coluna, tipo e sequence contra as tabelas reais da Sprint 3 antes de aceitar iniciar. Foi essa checagem que revelou dois mapeamentos divergentes, hoje corrigidos: um `Double` ia para `BINARY_DOUBLE` quando a coluna é `NUMBER(7,2)`, e o `boolean` convertido ia para `VARCHAR2(1)` quando a coluna é `CHAR(1)`.
 
 A suíte sobe o contexto Spring inteiro contra um H2 em memória, o que de quebra **valida o mapeamento JPA**: se um `@Column` apontasse para coluna inexistente ou um `@SequenceGenerator` estivesse mal declarado, o contexto nem subiria. Cobre o CRUD completo de equipe e trecho (`201 → 200 → 200 → 204 → 404`), o cabeçalho `Location`, o polimorfismo da taxa de crescimento das três subclasses (1,2 / 0,72 / 6,3 cm/dia), as duas *derived queries*, o efeito polimórfico de `executarServico()`, as regras que devolvem `400` e os três endpoints de relatório. Cada teste é `@Transactional`, então nada do que grava sobrevive.
 
