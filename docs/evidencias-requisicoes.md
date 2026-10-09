@@ -1,6 +1,6 @@
 # Evidências de requisições — API MOTIVA (Sprint 4)
 
-Gerado em 09/10/2026 11:05:30 contra `http://localhost:8080`.
+Gerado em 09/10/2026 11:05:30 contra `http://localhost:8080` — banco: **H2 em memória (perfil `demo`) — rodada de demonstração, não o Oracle da FIAP**.
 
 Cada bloco traz o comando cURL enviado, o código HTTP devolvido e o corpo da resposta.
 

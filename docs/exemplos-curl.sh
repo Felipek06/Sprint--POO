@@ -17,6 +17,12 @@
 set -u
 BASE="${BASE:-http://localhost:8080}"
 
+# Banco contra o qual as evidencias estao sendo geradas. Fica registrado no
+# cabecalho do arquivo, para que ninguem confunda uma rodada de demonstracao
+# com uma rodada contra o banco oficial do projeto. Informe ao rodar:
+#   BANCO="Oracle FIAP" bash docs/exemplos-curl.sh > docs/evidencias-requisicoes.md
+BANCO="${BANCO:-nao informado}"
+
 # A API responde em UTF-8. No Windows o Python usa a codificacao da regiao
 # (cp1252) para ler o stdin, o que embaralharia os acentos ao formatar o
 # JSON; esta variavel forca UTF-8 na entrada e na saida.
@@ -83,7 +89,7 @@ extrair_id() {
 
 echo "# Evidências de requisições — API MOTIVA (Sprint 4)"
 echo ""
-echo "Gerado em $(date '+%d/%m/%Y %H:%M:%S') contra \`${BASE}\`."
+echo "Gerado em $(date '+%d/%m/%Y %H:%M:%S') contra \`${BASE}\` — banco: **${BANCO}**."
 echo ""
 echo "Cada bloco traz o comando cURL enviado, o código HTTP devolvido e o corpo da resposta."
 
