@@ -54,3 +54,6 @@ Thumbs.db
 
 ### Sobras de execucao dos scripts de docs/
 docs/.err
+
+### Pacotes de entrega gerados localmente
+*.zip
