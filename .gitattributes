@@ -15,3 +15,6 @@ mvnw      text eol=lf
 *.jar     binary
 *.png     binary
 *.jpg     binary
+
+### O TXT de identificacao do grupo nao deve ter o fim de linha alterado
+*.txt text eol=crlf
